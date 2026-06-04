@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>異現実収容研究所</title>
+    <link rel="stylesheet" href="css/top.css">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Zen+Kaku+Gothic+New:wght@300;400;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* ===== ACTION BUTTONS ===== */
+        .anomarealActions {
+            display: flex; flex-wrap: wrap; gap: 8px; padding: 16px 0 4px;
+        }
+        .anomarealActionBtn {
+            display: inline-flex; align-items: center; gap: 8px;
+            font-family: 'Share Tech Mono', 'Courier Prime', monospace; font-size: 9px; letter-spacing: 2px;
+            text-transform: uppercase; padding: 10px 20px;
+            background: #0a0a0a; color: #888; border: 1px solid #0a0a0a;
+            cursor: pointer; transition: color 0.15s, background 0.15s; white-space: nowrap;
+        }
+        .anomarealActionBtn:hover { background: #1a1a1a; color: #fff; }
+
+        /* ===== INFO POPUP ===== */
+        .info-popup-overlay {
+            display: flex; opacity: 0; visibility: hidden; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.82); justify-content: center; align-items: center;
+            z-index: 9990; transition: opacity 0.3s, visibility 0.3s; padding: 20px;
+        }
+        .info-popup-overlay.active { opacity: 1; visibility: visible; }
+        .info-popup {
+            background: #fff; border: 2px solid #0a0a0a;
+            width: 100%; max-width: 560px; max-height: 80vh; overflow-y: auto; position: relative;
+        }
+        .info-popup-header {
+            background: #0a0a0a; padding: 12px 16px;
+            display: flex; align-items: center; justify-content: space-between;
+            position: sticky; top: 0; z-index: 1; gap: 12px;
+        }
+        .info-popup-header .popup-title { font-family: 'Share Tech Mono', 'Courier Prime', monospace; font-size: 9px; letter-spacing: 3px; color: #888; }
+        .info-popup-header .popup-id { font-family: 'Share Tech Mono', 'Courier Prime', monospace; font-size: 8px; letter-spacing: 2px; color: #444; flex: 1; text-align: right; }
+        .info-popup-close {
+            font-family: 'Share Tech Mono', 'Courier Prime', monospace; font-size: 9px; letter-spacing: 1px;
+            background: transparent; border: 1px solid #333; color: #555;
+            padding: 4px 12px; cursor: pointer; transition: all 0.15s; flex-shrink: 0;
+        }
+        .info-popup-close:hover { border-color: #888; color: #aaa; }
+        .info-popup-body { padding: 24px 24px 28px; }
+        .info-popup-body h3 {
+            font-family: 'Share Tech Mono', 'Courier Prime', monospace; font-size: 10px; letter-spacing: 3px; color: #0a0a0a;
+            margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #d0cdc8;
+        }
+        .info-popup-body p { font-size: 13px; color: #3a3835; line-height: 2; margin-bottom: 12px; }
+        .info-popup-body p:last-child { margin-bottom: 0; }
+        .popup-label {
+            font-family: 'Share Tech Mono', 'Courier Prime', monospace; font-size: 8px; letter-spacing: 3px;
+            color: #aaa8a3; display: block; margin: 20px 0 8px;
+        }
+        .info-popup-body ul { list-style: none; padding: 0; }
+        .info-popup-body ul li {
+            font-size: 12px; color: #3a3835; padding: 6px 0 6px 16px;
+            border-bottom: 1px solid #e8e6e1; position: relative; line-height: 1.8;
+        }
+        .info-popup-body ul li::before { content: '—'; position: absolute; left: 0; font-family: 'Share Tech Mono', 'Courier Prime', monospace; color: #aaa8a3; font-size: 10px; }
+        .info-popup-body ul li:last-child { border-bottom: none; }
+
+        .anomarealActionBtn .btn-icon { font-size: 8px; color: #c0392b; }
+    </style>
+</head>
+<body>
+
+<!-- POPUP -->
+<div id="welcomePopup" class="popup-overlay">
+    <div class="popup-content">
+        <p>INCOMING TRANSMISSION — CLASSIFIED</p>
+        <p>ある日、貴方のもとへ一通のメールが届いた。</p>
+        <p>「測定員採用のお知らせ」</p>
+        <p>これは貴方が先日応募した少し怪しいアルバイトの採用通知だ。</p>
+        <p>少しの不安と少しの好奇心を胸に、貴方は記載された住所へと赴く。</p>
+        <p>郊外にある秘密の地下施設。</p>
+        <p>異現実収容研究所　来栖支部へようこそ。</p>
+        <button id="popupClose">サイトへアクセスする</button>
+    </div>
+</div>
+
+<!-- TOP BAR -->
+<div class="topbar">
+    <span style="display: inline-block">接続先: <b>SITE-Undertica-SECURE-DB-03</b></span>
+    <b>|</b>
+    <span style="display: inline-block">暗号化: <b>AES-256</b></span>
+    <b>|</b>
+    <span style="display: inline-block">セッション: <b>AUTR-1250-KMTH</b></span>
+    <span class="topbar-right" id="clock"></span>
+</div>
+
+<!-- HEADER -->
+<header class="site-header">
+    <a href="index.html" class="site-logo">
+        <div class="logo-mark"><img src="img/logo.png" alt="Anomareal Lab"></div>
+        <div class="logo-text">
+            <span class="logo-main">Anomareal Lab</span>
+            <span class="logo-sub">ANOMAREAL CONTAINMENT INSTITUTE — KURUSU</span>
+        </div>
+    </a>
+    <div class="header-user">
+        <span class="user-label">▶ AUTHENTICATED USER</span>
+        <span class="user-name">Guest Researcher</span>
+        <span class="user-level">CLEARANCE LEVEL: VISITOR</span>
+    </div>
+</header>
+
+<!-- PC NAV -->
+<nav class="headerNav pc">
+    <ul class="site-nav">
+        <li><a href="index.html" class="active">Home</a></li>
+        <li><a href="glossary.html">世界観-用語説明</a></li>
+        <li><a href="index.html#anomarealDB">一般公開資料</a></li>
+        <li><a href="rolefit.html">AnomerealLab役職診断</a></li>
+        <li><a href="credit.html">Credit</a></li>
+    </ul>
+</nav>
+
+<!-- SP NAV -->
+<nav class="headerNav sp">
+    <div class="sp-menu-overlay" id="spMenu">
+        <ul class="site-nav">
+            <li><a href="index.html">Home</a></li>
+            <li><a href="glossary.html">世界観-用語説明</a></li>
+            <li><a href="rolefit.html">一般公開資料</a></li>
+            <li><a href="credit.html">Credit</a></li>
+        </ul>
+    </div>
+</nav>
+<button class="hamburger-btn" id="hamburger" aria-label="メニュー">
+    <span class="bar"></span>
+    <span class="bar"></span>
+    <span class="bar"></span>
+</button>
+
+<!-- MAIN LAYOUT -->
+<div class="wrap">
+    <main>
+
+        <!-- ABOUT -->
+        <section style="margin-bottom: 48px;">
+            <div class="section-header">
+                <h2>当イベントについて</h2>
+                <span class="section-id">REF: ACI-GENERAL-001</span>
+            </div>
+            <div class="explanationWrap">
+                <div class="text-col">
+                    <p>PUBLIC INFORMATION DOCUMENT</p>
+                    <p>VRChat RP型イベント「異現実収容研究所」一般公開用WEBサイトへようこそ。</p>
+                    <p>当イベントは「対話型アトラクションRPイベント」です。<br>
+                    一部ジャンプスケアやホラー描写がございますので苦手な方はお控えください。<br>
+                    皆様には臨時研究員「測定員」として未知の存在「異現実」との対話を試みていただきます。</p>
+                    <p style="font-weight: bold;">この物語はフィクションです。登場する人物・団体・名称等は架空であり、実在のものとは関係ありません。</p>
+                    <div class="explanationButtonWrap">
+                        <a href="https://vrchat.com/home/group/grp_bea6d950-9024-4336-a939-9d74d0cdbd9a" target="_blank" rel="noopener">VRC Group</a>
+                        <a href="https://x.com/anomareal_lab" target="_blank" rel="noopener">X Account</a>
+                    </div>
+                </div>
+                <div class="movie">
+                    <iframe width="400" height="225"
+                        src="https://www.youtube.com/embed/udHeMA-ICes"
+                        title="異現実収容研究所　測定員向け説明動画"
+                        frameborder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowfullscreen></iframe>
+                    <p>イベント紹介動画はこちら</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- PRECAUTIONS -->
+        <section class="precautions" style="margin-bottom: 48px;">
+            <div class="section-header">
+                <h2>注意事項</h2>
+                <span class="section-id">PROTOCOL: VISITOR-CONDUCT-V3</span>
+            </div>
+            <div class="precautionsGrid">
+                <div class="precautionsWrap">
+                    <h3>参加条件</h3>
+                    <ul>
+                        <li>PCVRで参加可能な方</li>
+                        <li>ホラー、RPイベントに理解がある方</li>
+                        <li>New User以上の方</li>
+                        <li>マイクONにできる方、日本語話者</li>
+                        <li>以下記載の注意事項を守れる方</li>
+                    </ul>
+                </div>
+                <div class="precautionsWrap">
+                    <h3>事前注意</h3>
+                    <ul>
+                        <li>当イベントは撮影禁止です。スクリーンショットもお控えください。</li>
+                        <li>キャストに対するセクハラ、嫌がらせ、メタ発言等はおやめください。</li>
+                        <li>アバター容量30MB以下、身長120～150推奨です。</li>
+                        <li>世界観を崩さないために測定員(お客様)の人外、動物アバターはお控えください。</li>
+                        <li>その他パーティクルや過度な発光、武器や魔法ギミックなども禁止させていただきます。</li>
+                        <li>イベント中はシールドレベルを0にしてください。臨場感をより楽しめます。</li>
+                        <li>キャストのプロフィールを確認する、フレンド申請を送るなどはイベント中はお控えください。</li>
+                        <li>皆様は臨時研究員「測定員」として異現実と相対します。RPをするとよりイベントをお楽しみいただけます。</li>
+                        <li>あなた方の安全は我々が保証します。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- DATABASE -->
+        <section class="anomarealDB" id="anomarealDB">
+            <div class="section-header">
+                <h2>一般公開資料</h2>
+                <span class="section-id">DATABASE: ANOMAREAL-PUBLIC-INDEX</span>
+            </div>
+            <div class="anomarealTableWrapper">
+                <table class="anomarealTable">
+                    <thead>
+                        <tr>
+                            <th>番号</th>
+                            <th>カテゴリ</th>
+                            <th>名称 / 概要</th>
+                            <th>担当</th>
+                            <th>収容施設</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="anomarealNum">AC-009</td>
+                            <td class="anomarealClass">F/H</td>
+                            <td class="anomarealTitle">ハっとする鳩</td>
+                            <td class="anomarealCharge">■■■■■■■■■■■■■</td>
+                            <td class="anomarealCharge">■■■■■■■■■■■■■</td>
+                            <td><a href="public-information/AC-009.html" class="anomarealButton">詳細</a></td>
+                        </tr>
+                        <tr>
+                            <td class="anomarealNum">AC-026</td>
+                            <td class="anomarealClass">F/H</td>
+                            <td class="anomarealTitle">指輪頭の小鬼</td>
+                            <td class="anomarealCharge">■■■■■■■■■■■■■</td>
+                            <td class="anomarealCharge">■■■■■■■■■■■■■</td>
+                            <td><a href="public-information/AC-026.html" class="anomarealButton">詳細</a></td>
+                        </tr>
+                        <tr>
+                            <td class="anomarealNum">AC-087</td>
+                            <td class="anomarealClass">N/P</td>
+                            <td class="anomarealTitle">磔の咎人</td>
+                            <td class="anomarealCharge">■■■■■■■■■■■■■</td>
+                            <td class="anomarealCharge">■■■■■■■■■■■■■</td>
+                            <td><a href="public-information/AC-087.html" class="anomarealButton">詳細</a></td>
+                        </tr>
+                        <tr>
+                            <td class="anomarealNum">AC-109</td>
+                            <td class="anomarealClass">F/H</td>
+                            <td class="anomarealTitle">聖マルコスのランプ</td>
+                            <td class="anomarealCharge">■■■■■■■■■■■■■</td>
+                            <td class="anomarealCharge">■■■■■■■■■■■■■</td>
+                            <td><a href="public-information/AC-109.html" class="anomarealButton">詳細</a></td>
+                        </tr>
+                        <tr>
+                            <td class="anomarealNum">AC-119</td>
+                            <td class="anomarealClass">N/U</td>
+                            <td class="anomarealTitle">fire extinguisher man (消火器マン)</td>
+                            <td class="anomarealCharge">■■■■■■■■■■■■■</td>
+                            <td class="anomarealCharge">■■■■■■■■■■■■■</td>
+                            <td><a href="public-information/AC-119.html" class="anomarealButton">詳細</a></td>
+                        </tr>
+                        <tr>
+                            <td class="anomarealNum">AC-121</td>
+                            <td class="anomarealClass">N/U</td>
+                            <td class="anomarealTitle">マッドマンズ・プール</td>
+                            <td class="anomarealCharge">■■■■■■■■■■■■■</td>
+                            <td class="anomarealCharge">■■■■■■■■■■■■■</td>
+                            <td><a href="public-information/AC-121.html" class="anomarealButton">詳細</a></td>
+                        </tr>
+                        <tr>
+                            <td class="anomarealNum">AC-192</td>
+                            <td class="anomarealClass">F/U</td>
+                            <td class="anomarealTitle">ブラックアルバム</td>
+                            <td class="anomarealCharge">■■■■■■■■■■■■■</td>
+                            <td class="anomarealCharge">■■■■■■■■■■■■■</td>
+                            <td><a href="public-information/AC-192.html" class="anomarealButton">詳細</a></td>
+                        </tr>
+                        <tr>
+                            <td class="anomarealNum">AC-206</td>
+                            <td class="anomarealClass">O/H</td>
+                            <td class="anomarealTitle">nude model</td>
+                            <td class="anomarealCharge">■■■■■■■■■■■■■</td>
+                            <td class="anomarealCharge">■■■■■■■■■■■■■</td>
+                            <td><a href="public-information/AC-206.html" class="anomarealButton">詳細</a></td>
+                        </tr>
+                        <tr>
+                            <td class="anomarealNum">AC-502</td>
+                            <td class="anomarealClass">F/U</td>
+                            <td class="anomarealTitle">機械な代替品</td>
+                            <td class="anomarealCharge">■■■■■■■■■■■■■</td>
+                            <td class="anomarealCharge">■■■■■■■■■■■■■</td>
+                            <td><a href="public-information/AC-502.html" class="anomarealButton">詳細</a></td>
+                        </tr>
+                        <tr>
+                            <td class="anomarealNum">AC-999</td>
+                            <td class="anomarealClass">F/U</td>
+                            <td class="anomarealTitle">異現実喫茶</td>
+                            <td class="anomarealCharge">■■■■■■■■■■■■■</td>
+                            <td class="anomarealCharge">■■■■■■■■■■■■■</td>
+                            <td><a href="public-information/AC-999.html" class="anomarealButton">詳細</a></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="anomarealActions">
+                <button class="anomarealActionBtn" id="infoBtn">
+                    <span class="btn-icon">&#9658;</span>カテゴリとは
+                </button>
+            </div>
+
+            <div class="info-popup-overlay" id="infoPopup">
+                <div class="info-popup">
+                    <div class="info-popup-header">
+                        <span class="popup-title">TERMS &amp; DISCLAIMER</span>
+                        <span class="popup-id">ACI-LEGAL-001</span>
+                        <button class="info-popup-close" data-target="infoPopup">&#10005;</button>
+                    </div>
+                    <div class="info-popup-body">
+                        <h3>カテゴリ</h3>
+                        <span class="popup-label">TERMS OF USE</span>
+                        <ul>
+                            <li>適切な収容管理のためにカテゴリを選別する必要がある。友好/危険の頭文字表記で記録する。O/P(敵対かつ危険)は抹消対象とする。</li>
+                            <li>
+                                友好カテゴリ<br>
+                                Opponents・・・敵対、攻撃的<br>
+                                Neutral・・・中立<br>
+                                Friendly・・・友好、献身的<br>
+                            </li>
+                            <li>
+                                危険カテゴリ<br>
+                                Perilous・・・危険かつ制御不能、強大な力<br>
+                                Useful・・・危険かつ制御可能、有用可能<br>
+                                Harmless・・・無害、有用性なし<br>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ASIDE -->
+    <aside>
+        <div class="aside-block">
+            <h3>Facility Status</h3>
+            <div class="aside-stat">
+                <span class="label">THREAT LEVEL</span>
+                <span class="value red">MODERATE</span>
+            </div>
+            <div class="aside-stat">
+                <span class="label">CONTAINED</span>
+                <span class="value">■■■■■■ entities</span>
+            </div>
+            <div class="aside-stat">
+                <span class="label">ACTIVE STAFF</span>
+                <span class="value">■■■</span>
+            </div>
+            <div class="aside-stat">
+                <span class="label">BRANCH</span>
+                <span class="value">KURUSU-7</span>
+            </div>
+        </div>
+        <div class="aside-block">
+            <h3>Recent Alerts</h3>
+            <div class="aside-alert">
+                <div class="alert-level">NOTICE — LEVEL 1</div>
+                <p>AC-119の定期測定が予定されています。測定員は準備を行ってください。</p>
+            </div>
+            <div class="aside-alert">
+                <div class="alert-level">INFO</div>
+                <p>次回イベント日程は近日公開予定です。Xアカウントをご確認ください。</p>
+            </div>
+        </div>
+        <div class="aside-block">
+            <h3>Access Log</h3>
+            <div class="aside-stat">
+                <span class="label">SESSION</span>
+                <span class="value" id="sessionId">—</span>
+            </div>
+            <div class="aside-stat">
+                <span class="label">CONNECTED</span>
+                <span class="value" id="connTime">—</span>
+            </div>
+        </div>
+    </aside>
+</div>
+
+<!-- FOOTER -->
+<footer class="site-footer">
+    <span class="footer-copy">© ANOMAREAL CONTAINMENT INSTITUTE — ALL RIGHTS RESERVED</span>
+    <ul>
+        <li><a href="login.html">login</a></li>
+    </ul>
+</footer>
+
+<script>
+    // Popup — sessionStorage で離脱するまで再表示しない
+    const popup = document.getElementById('welcomePopup');
+    if (!sessionStorage.getItem('popupSeen')) {
+        popup.classList.add('active');
+    }
+    document.getElementById('popupClose').addEventListener('click', () => {
+        popup.classList.remove('active');
+        sessionStorage.setItem('popupSeen', '1');
+    });
+    // 閉じるボタンを押さずに別ページへ移動した場合もフラグを保存
+    window.addEventListener('pagehide', () => {
+        sessionStorage.setItem('popupSeen', '1');
+    });
+ 
+    // Clock
+    function updateClock() {
+        const now = new Date();
+        const pad = n => String(n).padStart(2, '0');
+        document.getElementById('clock').textContent =
+            `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+ 
+    // Session info
+    const sid = Math.random().toString(36).slice(2, 10).toUpperCase();
+    document.getElementById('sessionId').textContent = sid;
+    const now = new Date();
+    document.getElementById('connTime').textContent =
+        `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+ 
+    // Hamburger
+    const btn = document.getElementById('hamburger');
+    const menu = document.getElementById('spMenu');
+    btn.addEventListener('click', () => {
+        const open = btn.classList.toggle('is-open');
+        menu.classList.toggle('is-open', open);
+        document.body.classList.toggle('nav-open', open);
+    });
+</script>
+<script>
+    // ===== INFO POPUPS =====
+    function openInfoPopup(id) {
+        document.getElementById(id).classList.add('active');
+        document.body.classList.add('nav-open');
+    }
+    function closeInfoPopup(id) {
+        document.getElementById(id).classList.remove('active');
+        if (!document.querySelector('.info-popup-overlay.active')) {
+            document.body.classList.remove('nav-open');
+        }
+    }
+    document.getElementById('infoBtn').addEventListener('click',     () => openInfoPopup('infoPopup'));
+    document.querySelectorAll('.info-popup-close').forEach(el => {
+        el.addEventListener('click', () => closeInfoPopup(el.dataset.target));
+    });
+    document.querySelectorAll('.info-popup-overlay').forEach(overlay => {
+        overlay.addEventListener('click', e => {
+            if (e.target === overlay) closeInfoPopup(overlay.id);
+        });
+    });
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.info-popup-overlay.active').forEach(el => closeInfoPopup(el.id));
+        }
+    });
+</script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+    $(function () {
+        $('a[href^="#"]').click(function () {
+            var speed = 400;
+            var href = $(this).attr("href");
+            var target = $(href == "#" || href == "" ? 'html' : href);
+            var position = target.offset().top;
+            $('body,html').animate({
+                scrollTop: position - 100
+            }, speed, 'swing');
+            return false;
+        });
+    });
+</script>
+</body>
+</html>
+
+<!--
+                                                            不正アクセスを検知しました。
+
+` ..-.._..~~~~~:_:::<(;1+?v11??zZzzIllOtttttOtOvOOttzlzO1+?+zzzw++zzzxA&+zz&ukdZj&zjjsX1+j<+Jz>c<>+<;>><;+<::;;;+<;;<;<;;<<;;>;+?1l=ll==lllll==llltwXW
+.. _...-....~._:~::::><<;+1?zzlvzOttlttlllllllllzzO1OOzzzOwZkXQHHHWBUUHVC71+dzD$z<1YW9HWWHQWkkukzdzz?<<z+<><<+<+>>??;>;><;>>;;;>??=ll====l=ll===lltvXW
+_` _` _...~~~~~~~:_<:;;++z+?l==lllOz=ll======llzttOwwwwwXWHBHVzfw<;o<<Nz_~~:v(<1(_Jj@+dd3+y11DWHHWmmwwdZzz11+z>??>+?>>>>?>>>??>>??=zIlzl==ll=l===ltrwX
+`  . ___.- ..__~~~(<;;;<+??1z=lzlzzzl===lllllztOOOrwwXkW9Cz1zZzZJn<j<<Zb>_~(GH_J$Jj80j#$jK;<djhZ>1OVWHNkgkuG61=1?1z???=??>??>>>?1l=?==ll=========lttwX
+`..`   `...._._~~_:<;>><???=1zzlllllll=1==zllOOwXvvQX9O111<jjdzSJXh?2<JXWx&GWMdWNdhdXMWW6<&uNN5z++1uW0dWWHNHwwzz1z?z====????????1??==OOO=====??===ltrw
+`  `_`. .....~~~_:((;>>+1?=zztttlllll=z=lzztwXwz0XWSOI+z1lIJZVKdxdHMNdWMkWWXMWkMNkNMM@NkmWNMHyuugVHXgHVzqBVHHHkkA0zzv??=====?==????=llz=====???===lttw
+````````....._~~~:~(;;<?+=lttttllllllllztOwuUAOwWSIzOX+Oz+OxqdgNNkMHHMNHNNMMMHMMMMNNNHHHMMMHMHHMHHHkkHkBOuZwXHWWHWSXzz=z==l===???=?===ll??==?????=lltv
+`` . `.``  .~~~~~~~:;>>+zltttOtltlllllzOwwXUOwd9Izzz1XHsyuAWMHNMHHMMNMMMMMHMMM#MHMMMNNNMNHHHMMMMMMMMHAQdHW9wQdBWMWKkOOzz1=z===?========l===?>>>??==ltr
+```````._..-_._~~:(;++=ltttltltOIllzlOwww0wOwX0zwx=zOzWmdMHHHU0OwHMMMM@B9Wf<C(Z4RTMM@MMM#HHUUHHHMHMMMMMNHHMHNK9wdHWXd0ZzZ==?=========llz????>>>????=lr
+```` ```....~~~~:::<>>=tllzOzllltttOrOrwXOzwSvzvlvWAwWWWHH9C<<<dW@MMHHf<!X>~__.(L_?HHHHHHMMRzzZUHHHMMM#MM#NHQgHHmkUUXdUO=zz============?????>>>>???==t
+``````.`. .~_~~::<;>?1zllllvllzlztzOOwXt1Od0zzlzwXkXHMMUC<<<~~+dHHMHHXIJXHugNm&Jb.JHXmHHHHMMZ>+zOXUHM@MM#HMMNNHkQk8WUdSwwOzl======??=???>>>>;;>>?>?==l
+``````   . ~~~~(:;;+1=zlzzztvz=ztOzOwZOl1ZI1zOXXWWHMHUZv<~~._(zWHHWgHWGdWMMMMMMMNXXWW@HmNWMMS<;>=zwXWHM@HMMMMNkkQgHWAwzVOZll=======??>>>?>;>;;>>>???=l
+``` ```....~~~~::;>??1=z1z=1zz1+1l1zOz??1z1zzwWWHHW0CI<<<~.__(zWWWWWWXyUWMMMNMMMMXXXkHWyWWgH0<;;>>zwUWWHMHHMMMMMHHKWAyZOz==ll=l=???>>>>;>;;;;;;>>>>?==
+``````.....~~~::<;<>???1?1z?1?<<<>=<<<<<?+zwWHHHW0I1><:~~..~__+dHHkWHWWWWHHMMMHMHHkWHWySXWHHI<;>>>+zruXWWXXWWHHHkWWkwwZll====l==??>>>;;;;;:;;;;;>>>???
+`````..`..~.~:::;;>>>+???<?1<<;<;?<<:~((jdWWWWUC?I<<:::~~~..._(1WHkkwXWWHHHHMHHqHHHWWWWWWHHU<<<>>+1zOwXU0XXXXyXUUWkZuzwrlzz===??>;;;;;:::::;;;;;;>>>??
+````` . .~~~~~:::;>><<<>+>?<<(_<(<~~_(+zXVTz(1O<_<<(((:_.~~...__1WHHVkWUUWWHMMHWWkWWXXHH@HSv;<<<<<>?z1?11zwVWHUXZVUXwtOOOz====<>;;::::::::::;;:;;;>>??
+``````...~~~~~:;;;<;<>+<><<<<_~~~____+dV0I~--~?`_<+<::~~~...~.._~+XHmHWkXWWHHHHfkyWwHHHHH6<:<:::<<<;;;++zOZVXuXUXOO==1z=Ozzl?>>;;::::~::~~:::;;;;;>>>?
+``........~~~:::;:;;;;>>;;;:_~__~.__(+wUOz+-(((.(<1+<:_:____...~~_~1XWHHWHHHMHHkWWHHgH96<<~~:~<::::+<1+1OwwWyuXZtO=z????>?<<?>;:::~~~~~~~:~:::::;;;>>?
+`.``.....~~~:::::;;;;<<><<<<~_.-___(~(~<<<<<;?+<<<?1zzi+(_______._~_(?zUWHHWHHHHHHH9T1<_~~~__~:((1zwAyZS1twwzUZzz1>?><<<<;;;>;;;:::~~~~~::::~::::;;>>>
+..  ....~~~~~:::;;:;::;;;;:::~___:~__~__.-~~~_._<<<<<<<<<<<<<<-<<~:(__:~<<<(:<::<<<<<::_(<(-<+(u+1vzIzzwWzOOtvz>1<;;<::::::::;;:::~~~~~~~~:~::::::;;>>
+........~~~~~::;::::::(;;;<;:~~__<<_~..--._.-~_(__(<__:>(__~j1<>__><(<_-/<_<<_-((+(-_??7GJ7+1+zzZsz<1z1lvOOlz?<<;<;;;::~~~~:~::::~~:~~~~~~~:~~::::;;>>
+........~~~::::::;::::::<::::~~___(__.~______~(_~_;<<+<<<><+z?1+(+zIZ1J<jzcO+<>++Ozw2<(+z1UCI4><<<z+?1=?=z1+<<<;:<:::::~~~~~~~~~~~:~~~~~~~~~~:~:::;;>>
+.`.`..~~.~~::::~:;::::::(::::_~~_~:___~~_~_~~<~(<:;<><<<<<=z?1<><>OZ1I++1=S0$<<+OzI14<<<<<(1?1<<<;<11v<=<+<<<::::::<::~~~~~~~~~~~~~~~~~~~~~~~~::::;;>>
+..`....~~~:::~::::::~:_~:::<~::~~~~_~_:_~__~_(<(<<<<<?1z+1<<<<1z<1z1z;<<<<jO<;<<<+(+j1(>;<;>+?<<<>><<<<;;:::::::::~::~::~~~~~~~~~~~~~~~~~~~~~~~::::;>>
+.`....~~~:::::~(_:::::~~~~:~~~_~~~~~~~~~__~___~~~(<+<<+(<+<>??=?+<+<<>>+>+<v;:;;(<+1+<<:;;;;;<<;<;;;<(:::~~:~:~~::~::~~~~~~~~.~~~~~~~~~~~~~~~~~::::;;>
+......~~:~:~:::::::~:~::~_:_:~:~~~_~_~_~_.~_~_~~~~~~_<<<+<+<<;;<<<>?<<;(:<<<<<<<<;>+<<<:+;;;;(<:::<~~::~~:~~~::~~~~~~_~~~~~~~~.~..~~~~~~~~~~~:~~:::;;;
+......~~:~:::::::::~~:~~~:~~:~_~~~~~_~~~~_______~~_~<<~__:~<<<<((<~:<;<<::<:::::~::(~~(_:~~:~::~~_<~~~~_~::~~~~~~~_~~~~~~~..~.~~~~~~~~~~~~~~~~:~:::;;>
+....~~~~::::::::~~:::~::~~~~~~~~~~~~~~__~__~__~~~~~~~~~______~~~~~<:~~~~~~::~~~~_~:_~:::~<~<::~_:::~~~~:~~~~~~_~~~~~~~.~...~.~..~~~~~~~~~~~~~~:::::;;>
+...._~~::::::~:::::~::~~~~:__~~~~~~.~~.~~____..__~__~___~~~:~<__~~~~~_~~_~~~_~~~~~:<~~~~~~__~~____~_~___~~~~~~_~~_.~~...~~..~.~...~~~~~~~~~~~::~::;;;;
+
+
+-->
