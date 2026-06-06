@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ADMIN TERMINAL — 異現実収容研究所</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/admin.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Zen+Kaku+Gothic+New:wght@300;400;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- AUTH GATE -->
+<div class="auth-gate" id="authGate">
+    <p>VERIFYING CREDENTIALS...</p>
+</div>
+
+<!-- ADMIN BAR -->
+<div class="admin-bar">
+    <span>ADMIN TERMINAL — CLEARANCE LEVEL: DIRECTOR</span>
+    <span id="adminUserLabel"></span>
+    <button class="logout-btn" id="logoutBtn">LOGOUT</button>
+</div>
+
+<!-- TOP BAR -->
+<div class="topbar">
+    <span style="display: inline-block">接続先: <b>SITE-Undertica-SECURE-DB-03</b></span>
+    <b>|</b>
+    <span style="display: inline-block">暗号化: <b>AES-256</b></span>
+    <b>|</b>
+    <span style="display: inline-block">セッション: <b>AUTR-1250-KMTH</b></span>
+    <span class="topbar-right" id="clock"></span>
+</div>
+
+<!-- HEADER -->
+<header class="site-header">
+    <a href="index.html" class="site-logo">
+        <div class="logo-mark"><img src="img/logo.png" alt="Anomareal Lab"></div>
+        <div class="logo-text">
+            <span class="logo-main">Anomareal Lab</span>
+            <span class="logo-sub">ANOMAREAL CONTAINMENT INSTITUTE — KURUSU</span>
+        </div>
+    </a>
+    <div class="header-user">
+        <span class="user-label" style="color: #c0392b;">&#9654; ADMIN ACCESS</span>
+        <span class="user-name" id="headerUser">Director</span>
+        <span class="user-level">CLEARANCE LEVEL: DIRECTOR</span>
+    </div>
+</header>
+
+<!-- NAV -->
+<nav class="headerNav pc">
+    <ul class="site-nav">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="glossary.html">世界観-用語説明</a></li>
+        <li><a href="index.html#anomarealDB">一般公開資料</a></li>
+        <li><a href="admin.html" class="active">Admin</a></li>
+    </ul>
+</nav>
+
+<!-- MAIN -->
+<div class="admin-main">
+
+    <!-- STEP 1: LOG INPUT -->
+    <section class="admin-section">
+        <div class="admin-section-header">
+            <h2>SURVEY LOG DECODER</h2>
+            <span class="step-num">STEP 01</span>
+        </div>
+        <div class="admin-section-body">
+            <div class="field-row">
+                <label class="admin-label">Paste Survey Log</label>
+                <textarea class="admin-textarea log-input" id="logInput"
+                    placeholder="SurveyCollector の Result Panel からコピーしたログをここに貼り付けてください&#10;&#10;例:&#10;=== 部屋1 ===&#10;【好きな色は？】&#10;  Alice  →  赤&#10;  Bob    →  青"></textarea>
+            </div>
+            <div class="btn-row">
+                <button class="admin-btn" id="decodeBtn">&#9654; DECODE LOG</button>
+                <button class="admin-btn secondary" id="clearLogBtn">CLEAR</button>
+                <button class="admin-btn secondary" id="sampleBtn">LOAD SAMPLE</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- STEP 2: DECODED RESULTS -->
+    <section class="admin-section" id="decodedSection" style="display:none;">
+        <div class="admin-section-header">
+            <h2>DECODED RESULTS</h2>
+            <span class="step-num">STEP 02</span>
+        </div>
+        <div class="admin-section-body">
+            <div class="decode-stats" id="decodeStats"></div>
+            <div id="decodedOutput"></div>
+        </div>
+    </section>
+
+    <!-- STEP 3: PER-ROOM REPORT GENERATORS (dynamically populated) -->
+    <div id="roomGenerators"></div>
+
+</div>
+
+<!-- FOOTER -->
+<footer class="site-footer">
+    <span class="footer-copy">&copy; ANOMAREAL CONTAINMENT INSTITUTE &mdash; ALL RIGHTS RESERVED</span>
+    <ul>
+        <li><a href="index.html">PUBLIC SITE</a></li>
+    </ul>
+</footer>
+
+<script>
+// ===== AUTH CHECK =====
+(function() {
+    if (sessionStorage.getItem('adminAuth') !== '1') {
+        window.location.href = 'login.html';
+        return;
+    }
+    document.getElementById('authGate').style.display = 'none';
+    const user = sessionStorage.getItem('adminUser') || 'Director';
+    document.getElementById('adminUserLabel').textContent = `USER: ${user}`;
+    document.getElementById('headerUser').textContent = user;
+})();
+
+document.getElementById('logoutBtn').addEventListener('click', () => {
+    sessionStorage.removeItem('adminAuth');
+    sessionStorage.removeItem('adminUser');
+    window.location.href = 'login.html';
+});
+
+// ===== CLOCK =====
+function updateClock() {
+    const now = new Date();
+    const p = n => String(n).padStart(2, '0');
+    document.getElementById('clock').textContent =
+        `${now.getFullYear()}-${p(now.getMonth()+1)}-${p(now.getDate())} ${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ===== LOG PARSER =====
+let parsedData = null;
+
+function preprocessLog(text) {
+    // Insert newlines before room headers: === ... ===
+    text = text.replace(/(={2,}\s*[^=]+?\s*={2,})/g, '\n$1\n');
+    // Insert newlines before question markers: 【...】
+    text = text.replace(/(【[^】]+】)/g, '\n$1\n');
+    // Insert newlines before response patterns: "Name  →" preceded by end of previous answer
+    text = text.replace(/(\S)\s{2,}(\S+?\s+→)/g, '$1\n  $2');
+    return text;
+}
+
+function parseLog(text) {
+    text = preprocessLog(text);
+    const lines = text.split('\n');
+    const rooms = [];
+    let currentRoom = null;
+    let currentQuestion = null;
+
+    for (const raw of lines) {
+        const line = raw.trimEnd();
+        if (!line.trim()) continue;
+
+        const roomMatch = line.match(/^={2,}\s*(.+?)\s*={2,}$/);
+        if (roomMatch) {
+            currentRoom = { name: roomMatch[1], questions: [] };
+            rooms.push(currentRoom);
+            currentQuestion = null;
+            continue;
+        }
+
+        const questionMatch = line.match(/^【(.+?)】$/);
+        if (questionMatch) {
+            if (!currentRoom) {
+                currentRoom = { name: '(default)', questions: [] };
+                rooms.push(currentRoom);
+            }
+            currentQuestion = { text: questionMatch[1], responses: [] };
+            currentRoom.questions.push(currentQuestion);
+            continue;
+        }
+
+        const responseMatch = line.match(/^\s+(.+?)\s+→\s+(.+)$/);
+        if (responseMatch && currentQuestion) {
+            currentQuestion.responses.push({
+                player: responseMatch[1].trim(),
+                answer: responseMatch[2].trim()
+            });
+        }
+    }
+    return rooms;
+}
+
+function renderDecoded(rooms) {
+    const output = document.getElementById('decodedOutput');
+    const stats = document.getElementById('decodeStats');
+
+    let totalResponses = 0;
+    let totalQuestions = 0;
+    const players = new Set();
+    rooms.forEach(r => {
+        r.questions.forEach(q => {
+            totalQuestions++;
+            q.responses.forEach(resp => {
+                totalResponses++;
+                players.add(resp.player);
+            });
+        });
+    });
+
+    stats.innerHTML = `
+        <span class="decode-stat"><strong>${rooms.length}</strong>ROOMS</span>
+        <span class="decode-stat"><strong>${totalQuestions}</strong>QUESTIONS</span>
+        <span class="decode-stat"><strong>${totalResponses}</strong>RESPONSES</span>
+        <span class="decode-stat"><strong>${players.size}</strong>PLAYERS</span>
+    `;
+
+    if (!rooms.length) {
+        output.innerHTML = '<div class="decoded-empty">// NO DATA DECODED</div>';
+        return;
+    }
+
+    let tabsHtml = '';
+    let panelsHtml = '';
+    rooms.forEach((room, idx) => {
+        tabsHtml += `<button class="room-tab${idx === 0 ? ' active' : ''}" data-decoded="${idx}">${escapeHtml(room.name)}</button>`;
+
+        let roomContent = '';
+        room.questions.forEach(q => {
+            roomContent += `<div class="decoded-question">`;
+            roomContent += `<div class="decoded-question-title">${escapeHtml(q.text)}</div>`;
+            q.responses.forEach(r => {
+                roomContent += `<div class="decoded-response">
+                    <span class="resp-player">${escapeHtml(r.player)}</span>
+                    <span class="resp-arrow">&rarr;</span>
+                    <span class="resp-answer">${escapeHtml(r.answer)}</span>
+                </div>`;
+            });
+            if (!q.responses.length) {
+                roomContent += '<div class="decoded-response"><span class="resp-player" style="color:#ccc;">(回答なし)</span></div>';
+            }
+            roomContent += `</div>`;
+        });
+
+        panelsHtml += `<div class="room-tab-panel${idx === 0 ? ' active' : ''}" data-decoded="${idx}">${roomContent}</div>`;
+    });
+
+    output.innerHTML = `<div class="room-tabs">${tabsHtml}</div>${panelsHtml}`;
+
+    output.querySelectorAll('.room-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            output.querySelectorAll('.room-tab').forEach(t => t.classList.remove('active'));
+            output.querySelectorAll('.room-tab-panel').forEach(p => p.classList.remove('active'));
+            tab.classList.add('active');
+            output.querySelector(`.room-tab-panel[data-decoded="${tab.dataset.decoded}"]`).classList.add('active');
+        });
+    });
+}
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+// ===== DECODE BUTTON =====
+document.getElementById('decodeBtn').addEventListener('click', () => {
+    const text = document.getElementById('logInput').value.trim();
+    if (!text) return;
+    parsedData = parseLog(text);
+    renderDecoded(parsedData);
+    document.getElementById('decodedSection').style.display = '';
+    renderRoomGenerators(parsedData);
+    document.getElementById('decodedSection').scrollIntoView({ behavior: 'smooth' });
+});
+
+document.getElementById('clearLogBtn').addEventListener('click', () => {
+    document.getElementById('logInput').value = '';
+    parsedData = null;
+    document.getElementById('decodedSection').style.display = 'none';
+    document.getElementById('roomGenerators').innerHTML = '';
+});
+
+// ===== SAMPLE DATA =====
+document.getElementById('sampleBtn').addEventListener('click', () => {
+    document.getElementById('logInput').value = `=== AC-009 ハっとする鳩 ===
+【外見的特徴を記述してください】
+  測定員あかり  →  灰色の羽根に赤い目。普通の鳩と見分けがつかないが、瞬きが異常に遅い。
+  測定員そら  →  中型の鳩。胸元に微かな発光が見られることがある。
+  測定員ゆうき  →  一般的なドバトに酷似。近距離で観察すると瞳孔が十字型に見える。
+
+【異現実性の発現条件と挙動を報告してください】
+  測定員あかり  →  対象を鏡やカメラの前に置くと自動的に写真が出現する。未来の映像をプリントする。
+  測定員そら  →  半径2m以内に生物が近づくと発動。写真の内容は対象の未来に関するもの。
+  測定員ゆうき  →  特定の人物を注視すると足元にポラロイド写真が出現。的中率は100%。
+
+【危険度と対話可能性の所見】
+  測定員あかり  →  無害。人語を理解する素振りはあるが発話能力なし。
+  測定員そら  →  無害。首の動きでYes/No程度の応答を行う。攻撃性は確認されず。
+  測定員ゆうき  →  無害。自発的な行動は給餌時のみ。従順な性質。
+
+=== AC-119 消火器マン ===
+【初回接触時の対象の反応を記述してください】
+  測定員あかり  →  入室直後に「ヨウコソ」と発話。消火器を構えたまま直立不動。
+  測定員そら  →  測定員を視認すると頭部のバルブが回転し始めた。友好的な態度。
+  測定員ゆうき  →  身振り手振りで何かを伝えようとしていたが内容は不明。威嚇行動なし。
+
+【消火剤噴射の発動条件を確認してください】
+  測定員あかり  →  室温が35度を超えると無差別に噴射。それ以外は自発的に噴射しない。
+  測定員そら  →  火気に対して即座に反応し噴射。ライターの着火でも反応した。
+  測定員ゆうき  →  強い光源にも反応する。カメラのフラッシュで噴射された。
+
+【収容時の注意事項を報告してください】
+  測定員あかり  →  室温を25度以下に維持すること。照明は暖色LEDのみ推奨。
+  測定員そら  →  消火剤の残量は無限。噴射後も本体重量に変化なし。
+  測定員ゆうき  →  週1回の「点検ごっこ」をしないと不機嫌になりノズルを壁に向ける。
+
+=== AC-192 ブラックアルバム ===
+【対象の物理的特徴を記述してください】
+  測定員あかり  →  黒革装丁のアルバム。ページ数は開くたびに変動する。最小8頁、最大で200頁以上。
+  測定員そら  →  表紙に金色の箔押しで「B.A.」の刻印。裏表紙に製造元の記載なし。
+
+【異現実性の発現パターンを報告してください】
+  測定員あかり  →  開いた者の「最も忘れたい記憶」が写真として出現。本人以外には白紙に見える。
+  測定員そら  →  連続して開くと記憶の時系列が崩れ、古い記憶ほど鮮明に表示される。
+
+【精神的影響の有無と程度を評価してください】
+  測定員あかり  →  閲覧後30分程度の軽度な気分の落ち込みあり。1時間で回復。重篤な影響なし。
+  測定員そら  →  3回以上連続閲覧した被験者に一時的な解離症状。24時間で完全回復。要注意。`;
+});
+
+// ===== AUTO-FILL HELPERS =====
+function setRoomField(idx, field, value) {
+    const el = document.querySelector(`[data-room="${idx}"][data-field="${field}"]`);
+    if (el) el.value = value;
+}
+
+function autoFillRoomFields(room, idx) {
+    const nameMatch = room.name.match(/(AC-\d+)\s+(.*)/);
+    if (nameMatch) {
+        setRoomField(idx, 'num', nameMatch[1]);
+        setRoomField(idx, 'name', nameMatch[2]);
+    }
+
+    const fieldMap = [
+        { field: 'nature',  kw: ['外見', '特徴', '物理', '見た目', '形状', '形態'] },
+        { field: 'anomaly', kw: ['異現実性', '発現', '発動', '能力', 'パターン', '挙動'] },
+        { field: 'origin',  kw: ['出自', '場所', '発見', '入手', '出所', '由来'] },
+    ];
+
+    for (const { field, kw } of fieldMap) {
+        const q = room.questions.find(q => kw.some(k => q.text.includes(k)));
+        if (q && q.responses.length) {
+            setRoomField(idx, field, q.responses[0].answer);
+        }
+    }
+
+    const allText = room.questions.flatMap(q => q.responses.map(r => r.answer)).join(' ');
+    let att = 'N';
+    if (/敵対|凶暴|攻撃的/.test(allText)) att = 'O';
+    if (/友好|従順|穏やか/.test(allText)) att = 'F';
+    let haz = 'H';
+    if (/極めて危険|致命的|甚大/.test(allText)) haz = 'P';
+    if (/有用|利用価値|有益/.test(allText)) haz = 'U';
+    setRoomField(idx, 'cat', `${att}/${haz}`);
+}
+
+// ===== QUESTION SECTIONS BUILDER =====
+function buildQuestionSections(idx) {
+    const room = parsedData[idx];
+    if (!room) return '';
+    return room.questions.map((q, qIdx) => {
+        const ta = document.querySelector(`[data-room="${idx}"][data-field="q${qIdx}"]`);
+        const text = ta ? ta.value.trim() : '';
+        const lines = text.split('\n').filter(Boolean);
+        const resHtml = lines.map(line => {
+            const m = line.match(/^(.+?):\s+(.+)$/);
+            if (m) return `<div class="survey-resp"><span class="survey-resp-name">${escapeHtml(m[1])}</span><span class="survey-resp-text">${escapeHtml(m[2])}</span></div>`;
+            return `<p style="font-size:12px;color:#3a3835;line-height:1.8;padding-left:12px;">${escapeHtml(line)}</p>`;
+        }).join('\n');
+        return `<div class="survey-question">
+                        <div class="survey-q-header">
+                            <span class="survey-q-num">Q${String(qIdx + 1).padStart(2, '0')}</span>
+                            <span class="survey-q-text">${escapeHtml(q.text)}</span>
+                        </div>
+                        <div class="survey-responses">${resHtml}</div>
+                    </div>`;
+    }).join('\n');
+}
+
+// ===== PER-ROOM GENERATORS (TABBED) =====
+function renderRoomGenerators(rooms) {
+    const container = document.getElementById('roomGenerators');
+    container.innerHTML = '';
+
+    const section = document.createElement('section');
+    section.className = 'admin-section';
+
+    let tabsHtml = '';
+    let panelsHtml = '';
+
+    rooms.forEach((room, idx) => {
+        let questionsHtml = '';
+        room.questions.forEach((q, qIdx) => {
+            questionsHtml += `
+                <div class="field-row">
+                    <label class="admin-label">Q${String(qIdx + 1).padStart(2, '0')}: ${escapeHtml(q.text)}</label>
+                    <textarea class="admin-textarea" data-room="${idx}" data-field="q${qIdx}" style="min-height:80px;"></textarea>
+                </div>`;
+        });
+
+        tabsHtml += `<button class="room-tab${idx === 0 ? ' active' : ''}" data-room="${idx}">${escapeHtml(room.name)}</button>`;
+
+        panelsHtml += `
+        <div class="room-tab-panel${idx === 0 ? ' active' : ''}" data-room="${idx}">
+            <div class="admin-section-body">
+                <div class="field-grid">
+                    <div class="field-row">
+                        <label class="admin-label">AC Number — AUTO-FILLED</label>
+                        <input class="admin-input" data-room="${idx}" data-field="num" placeholder="AC-XXX">
+                    </div>
+                    <div class="field-row">
+                        <label class="admin-label">Name — AUTO-FILLED</label>
+                        <input class="admin-input" data-room="${idx}" data-field="name" placeholder="異現実名称">
+                    </div>
+                    <div class="field-row">
+                        <label class="admin-label">Category — AUTO-FILLED</label>
+                        <select class="admin-select" data-room="${idx}" data-field="cat">
+                            <option value="F/H">F/H — 友好 / 無害</option>
+                            <option value="F/U">F/U — 友好 / 有用</option>
+                            <option value="N/H">N/H — 中立 / 無害</option>
+                            <option value="N/U">N/U — 中立 / 有用</option>
+                            <option value="N/P">N/P — 中立 / 危険</option>
+                            <option value="O/H">O/H — 敵対 / 無害</option>
+                            <option value="O/U">O/U — 敵対 / 有用</option>
+                            <option value="O/P">O/P — 敵対 / 危険（抹消対象）</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="field-grid">
+                    <div class="field-row">
+                        <label class="admin-label">Nature (性質) — AUTO-FILLED</label>
+                        <input class="admin-input" data-room="${idx}" data-field="nature" placeholder="例: 動物 / 対話不可">
+                    </div>
+                    <div class="field-row">
+                        <label class="admin-label">Origin (出自) — AUTO-FILLED</label>
+                        <input class="admin-input" data-room="${idx}" data-field="origin" placeholder="例: 東京都■■■公園">
+                    </div>
+                    <div class="field-row">
+                        <label class="admin-label">Anomaly Type (異現実性) — AUTO-FILLED</label>
+                        <input class="admin-input" data-room="${idx}" data-field="anomaly" placeholder="異現実としての特性">
+                    </div>
+                </div>
+                <div style="margin-top:20px; margin-bottom:4px;">
+                    <span class="admin-label">SURVEY RESPONSES — 調査回答 — AUTO-FILLED</span>
+                </div>
+                ${questionsHtml}
+                <div class="field-row">
+                    <label class="admin-label">Addendum (追記・補足)</label>
+                    <textarea class="admin-textarea" data-room="${idx}" data-field="addendum" style="min-height:80px;"
+                        placeholder="（現在追記事項なし）"></textarea>
+                </div>
+                <div class="btn-row">
+                    <button class="admin-btn room-preview-btn" data-room="${idx}">&#9654; PREVIEW</button>
+                    <button class="admin-btn room-download-btn" data-room="${idx}">DOWNLOAD HTML</button>
+                </div>
+                <div class="room-preview-wrap" data-room="${idx}" style="display:none; margin-top:20px;">
+                    <iframe class="preview-frame" data-room="${idx}" style="width:100%; min-height:600px; border:2px solid #d0cdc8;"></iframe>
+                </div>
+            </div>
+        </div>`;
+    });
+
+    section.innerHTML = `
+        <div class="admin-section-header">
+            <h2>AC REPORT GENERATOR</h2>
+            <span class="step-num">STEP 03</span>
+        </div>
+        <div class="room-tabs">${tabsHtml}</div>
+        ${panelsHtml}`;
+    container.appendChild(section);
+
+    rooms.forEach((room, idx) => {
+        room.questions.forEach((q, qIdx) => {
+            const ta = section.querySelector(`[data-room="${idx}"][data-field="q${qIdx}"]`);
+            if (ta) ta.value = q.responses.map(r => `${r.player}: ${r.answer}`).join('\n');
+        });
+        autoFillRoomFields(room, idx);
+    });
+
+    section.querySelectorAll('.room-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            section.querySelectorAll('.room-tab').forEach(t => t.classList.remove('active'));
+            section.querySelectorAll('.room-tab-panel').forEach(p => p.classList.remove('active'));
+            tab.classList.add('active');
+            section.querySelector(`.room-tab-panel[data-room="${tab.dataset.room}"]`).classList.add('active');
+        });
+    });
+
+    section.querySelectorAll('.room-preview-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const i = parseInt(btn.dataset.room);
+            const html = generateRoomReportHtml(i);
+            const wrap = section.querySelector(`.room-preview-wrap[data-room="${i}"]`);
+            const frame = wrap.querySelector('iframe');
+            wrap.style.display = '';
+            frame.srcdoc = html;
+            wrap.scrollIntoView({ behavior: 'smooth' });
+        });
+    });
+
+    section.querySelectorAll('.room-download-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const i = parseInt(btn.dataset.room);
+            const html = generateRoomReportHtml(i);
+            const num = getRoomField(i, 'num') || 'AC-XXX';
+            const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${num}.html`;
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+    });
+}
+
+function getRoomField(idx, field) {
+    const el = document.querySelector(`[data-room="${idx}"][data-field="${field}"]`);
+    return el ? el.value.trim() : '';
+}
+
+// ===== AC REPORT HTML GENERATOR =====
+function generateRoomReportHtml(idx) {
+    const num = getRoomField(idx, 'num') || 'AC-XXX';
+    const name = getRoomField(idx, 'name') || '（名称未設定）';
+    const cat = getRoomField(idx, 'cat') || 'F/H';
+    const nature = getRoomField(idx, 'nature') || '—';
+    const origin = getRoomField(idx, 'origin') || '—';
+    const anomaly = getRoomField(idx, 'anomaly') || '—';
+    const addendum = getRoomField(idx, 'addendum') || '（現在追記事項なし）';
+
+    const numOnly = num.replace(/^AC-/, '');
+    const docId = `ACI-RPT-${numOnly.padStart(3, '0')}-PUB`;
+    const questionSections = buildQuestionSections(idx);
+    const addendumParagraphs = addendum.split('\n\n').filter(Boolean).map(p =>
+        `                <p>${escapeHtml(p).replace(/\n/g, '<br>')}</p>`
+    ).join('\n');
+
+    return `<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>調査報告書 ${escapeHtml(num)} — 異現実収容研究所</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Zen+Kaku+Gothic+New:wght@300;400;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{background:#f5f4f0;color:#0a0a0a}
+        :root{
+            --black:#0a0a0a;--white:#fff;
+            --gray-100:#e8e6e1;--gray-200:#d0cdc8;--gray-300:#aaa8a3;
+            --gray-500:#6b6966;--gray-700:#3a3835;
+            --mono:'Share Tech Mono','Courier Prime',monospace;
+            --sans:'Zen Kaku Gothic New',sans-serif;
+        }
+        .report-page{max-width:900px;margin:0 auto;padding:40px 20px}
+        .report-page-header{display:flex;justify-content:space-between;align-items:center;padding:12px 0 16px;margin-bottom:24px;border-bottom:2px solid var(--black)}
+        .institute-mark{font-family:var(--mono);font-size:11px;letter-spacing:3px;color:var(--black)}
+        .institute-sub{font-family:var(--mono);font-size:8px;letter-spacing:2px;color:var(--gray-300);margin-top:2px}
+        .header-right{font-family:var(--mono);font-size:8px;letter-spacing:2px;color:var(--gray-300);text-align:right;line-height:1.8}
+        .report-doc{background:var(--white);border:2px solid var(--black)}
+        .report-title-bar{border-bottom:2px solid var(--black);padding:16px 20px;text-align:center;position:relative}
+        .report-title-bar h1{font-family:var(--sans);font-size:20px;font-weight:700;letter-spacing:.1em;color:var(--black)}
+        .report-title-bar .doc-stamp{position:absolute;top:50%;right:20px;transform:translateY(-50%);font-family:var(--mono);font-size:8px;letter-spacing:2px;color:var(--gray-300);text-align:right;line-height:1.8}
+        .report-ac-row{display:flex;border-bottom:1px solid var(--black)}
+        .report-ac-main{flex:1;padding:12px 16px;border-right:1px solid var(--black);display:flex;align-items:baseline;gap:12px}
+        .report-ac-main .ac-num{font-family:var(--mono);font-size:22px;font-weight:bold;letter-spacing:2px;color:var(--black)}
+        .report-ac-main .ac-name{font-family:var(--sans);font-size:16px;font-weight:700;color:var(--black)}
+        .report-ac-category{width:100px;flex-shrink:0;padding:8px 12px;text-align:center}
+        .report-ac-category .cat-label{font-family:var(--mono);font-size:8px;letter-spacing:2px;color:var(--gray-300);display:block;margin-bottom:2px}
+        .report-ac-category .cat-value{font-family:var(--mono);font-size:20px;font-weight:bold;color:var(--black);letter-spacing:1px}
+        .report-meta-row{display:flex;border-bottom:1px solid var(--black)}
+        .report-meta-cell{flex:1;border-right:1px solid var(--black)}
+        .report-meta-cell:last-child{border-right:none}
+        .report-meta-cell .meta-label{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--black);background:var(--gray-100);padding:5px 12px;border-bottom:1px solid var(--black);display:block}
+        .report-meta-cell .meta-value{padding:8px 12px;font-size:12px;color:var(--gray-700);line-height:1.7;font-family:var(--sans)}
+        .report-body{border-bottom:1px solid var(--black);padding:20px;min-height:160px}
+        .report-body .body-label{font-family:var(--mono);font-size:8px;letter-spacing:3px;color:var(--gray-300);display:block;margin-bottom:16px}
+        .survey-question{margin-bottom:20px}
+        .survey-question:last-child{margin-bottom:0}
+        .survey-q-header{display:flex;align-items:baseline;gap:10px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--gray-100)}
+        .survey-q-num{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--gray-300);flex-shrink:0}
+        .survey-q-text{font-family:var(--sans);font-size:13px;font-weight:700;color:var(--black)}
+        .survey-resp{display:flex;gap:10px;padding:3px 0 3px 16px;font-size:12px;line-height:1.8}
+        .survey-resp-name{font-family:var(--mono);font-size:11px;color:var(--gray-500);min-width:110px;flex-shrink:0}
+        .survey-resp-text{color:var(--gray-700);font-family:var(--sans)}
+        .report-addendum{border-bottom:1px solid var(--black);padding:20px;min-height:80px;background:#fdfcfa}
+        .report-addendum .body-label{font-family:var(--mono);font-size:8px;letter-spacing:3px;color:var(--gray-300);display:block;margin-bottom:12px}
+        .report-addendum p{font-size:13px;color:var(--gray-700);line-height:2;margin-bottom:10px;font-family:var(--sans)}
+        .report-addendum p:last-child{margin-bottom:0}
+        .report-page-footer{display:flex;justify-content:space-between;align-items:center;margin-top:24px;padding:12px 0;border-top:1px solid var(--gray-200);font-family:var(--mono);font-size:8px;letter-spacing:2px;color:var(--gray-300)}
+        @media(max-width:768px){
+            .report-page{padding:16px 12px}
+            .report-page-header{flex-direction:column;gap:8px}
+            .report-title-bar .doc-stamp{display:none}
+            .report-ac-main .ac-num{font-size:16px}
+            .report-ac-main .ac-name{font-size:13px}
+            .report-meta-row{flex-direction:column}
+            .report-meta-cell{border-right:none;border-bottom:1px solid var(--black)}
+            .report-meta-cell:last-child{border-bottom:none}
+            .survey-resp{flex-direction:column;gap:2px}
+            .survey-resp-name{min-width:auto}
+        }
+    </style>
+</head>
+<body>
+    <div class="report-page">
+        <header class="report-page-header">
+            <div>
+                <div class="institute-mark">ANOMAREAL CONTAINMENT INSTITUTE</div>
+                <div class="institute-sub">異現実収容研究所 — KURUSU BRANCH</div>
+            </div>
+            <div class="header-right">DOC-ID: ${docId}<br>CLASSIFICATION: PUBLIC</div>
+        </header>
+
+        <div class="report-doc">
+            <div class="report-title-bar">
+                <h1>異現実調査報告書</h1>
+                <div class="doc-stamp">DOC-ID: ${docId}<br>ISSUED: ■■■■.■■.■■<br>CLASSIFICATION: PUBLIC</div>
+            </div>
+
+            <div class="report-ac-row">
+                <div class="report-ac-main">
+                    <span class="ac-num">${escapeHtml(num)}</span>
+                    <span class="ac-name">${escapeHtml(name)}</span>
+                </div>
+                <div class="report-ac-category">
+                    <span class="cat-label">カテゴリ</span>
+                    <span class="cat-value">${escapeHtml(cat)}</span>
+                </div>
+            </div>
+
+            <div class="report-meta-row">
+                <div class="report-meta-cell">
+                    <span class="meta-label">性質</span>
+                    <div class="meta-value">${escapeHtml(nature)}</div>
+                </div>
+                <div class="report-meta-cell">
+                    <span class="meta-label">出自</span>
+                    <div class="meta-value">${escapeHtml(origin)}</div>
+                </div>
+                <div class="report-meta-cell">
+                    <span class="meta-label">異現実性</span>
+                    <div class="meta-value">${escapeHtml(anomaly)}</div>
+                </div>
+            </div>
+
+            <div class="report-body">
+                <span class="body-label">SURVEY RESULTS — 調査結果</span>
+${questionSections}
+            </div>
+
+            <div class="report-addendum">
+                <span class="body-label">ADDENDUM — 追記・補足</span>
+${addendumParagraphs}
+            </div>
+        </div>
+
+        <footer class="report-page-footer">
+            <span>&copy; ANOMAREAL CONTAINMENT INSTITUTE &mdash; ALL RIGHTS RESERVED</span>
+            <span>${docId}</span>
+        </footer>
+    </div>
+</body>
+</html>`;
+}
+
+// Preview and Download are now handled per-room in renderRoomGenerators()
+</script>
+</body>
+</html>

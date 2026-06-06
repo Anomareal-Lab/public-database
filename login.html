@@ -674,7 +674,15 @@
         }, 400);
     }
 
-    function doLogin() {
+    const ADMIN_HASH = '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918';
+
+    async function sha256(text) {
+        const data = new TextEncoder().encode(text);
+        const buf = await crypto.subtle.digest('SHA-256', data);
+        return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    async function doLogin() {
         if (locked) return;
 
         const id   = inputId.value.trim();
@@ -685,13 +693,21 @@
             return;
         }
 
-        // Loading state
         submitBtn.classList.add('loading');
         submitBtn.disabled = true;
+
+        const hash = await sha256(pass);
 
         setTimeout(() => {
             submitBtn.classList.remove('loading');
             submitBtn.disabled = false;
+
+            if (hash === ADMIN_HASH) {
+                sessionStorage.setItem('adminAuth', '1');
+                sessionStorage.setItem('adminUser', id);
+                window.location.href = 'admin.html';
+                return;
+            }
 
             attempts++;
             updatePips();
@@ -699,21 +715,18 @@
             inputPass.value = '';
 
             if (attempts >= MAX_LOCK) {
-                // Full lockout
                 locked = true;
                 submitBtn.disabled = true;
                 showLockMsg('⚠ アクセスが一時停止されました。セキュリティ担当に通知済みです。');
                 startLockout();
             } else if (attempts >= MAX_WARN) {
-                // Warning
                 const remaining = MAX_LOCK - attempts;
                 showWarn(`⚠ WARNING — 認証失敗が${attempts}回を超過しました。残り${remaining}回でアクセスが一時停止されます。`);
             } else {
-                // Normal error
                 const msg = errorMessages[attempts % errorMessages.length];
                 showError(msg);
             }
-        }, 900 + Math.random() * 400); // random delay for realism
+        }, 900 + Math.random() * 400);
     }
 
     // Lockout countdown
