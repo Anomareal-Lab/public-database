@@ -9,6 +9,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Zen+Kaku+Gothic+New:wght@300;400;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        .room-mosaic-btn.active {
+            background: #000 !important;
+            color: #fff !important;
+            border-color: #000 !important;
+        }
+    </style>
 </head>
 <body>
 
@@ -20,18 +28,7 @@
 <!-- ADMIN BAR -->
 <div class="admin-bar">
     <span>ADMIN TERMINAL — CLEARANCE LEVEL: DIRECTOR</span>
-    <span id="adminUserLabel"></span>
-    <button class="logout-btn" id="logoutBtn">LOGOUT</button>
-</div>
-
-<!-- TOP BAR -->
-<div class="topbar">
-    <span style="display: inline-block">接続先: <b>SITE-Undertica-SECURE-DB-03</b></span>
-    <b>|</b>
-    <span style="display: inline-block">暗号化: <b>AES-256</b></span>
-    <b>|</b>
-    <span style="display: inline-block">セッション: <b>AUTR-1250-KMTH</b></span>
-    <span class="topbar-right" id="clock"></span>
+    <span id="adminUserLabel"><button class="logout-btn" id="logoutBtn">LOGOUT</button></span>
 </div>
 
 <!-- HEADER -->
@@ -73,7 +70,7 @@
             <div class="field-row">
                 <label class="admin-label">Paste Survey Log</label>
                 <textarea class="admin-textarea log-input" id="logInput"
-                    placeholder="SurveyCollector の Result Panel からコピーしたログをここに貼り付けてください&#10;&#10;例:&#10;=== 部屋1 ===&#10;【好きな色は？】&#10;  Alice  →  赤&#10;  Bob    →  青"></textarea>
+                    placeholder="SurveyCollector の Result Panel からコピーしたログをここに貼り付けてください&#10;&#10;例:&#10;=== AC-XXX ===&#10;【友好度】 Alice → Friendly&#10;【危険度】 Alice → Useful&#10;【特別処置】 Alice → 収容維持&#10;【好きな色は？】 Alice → 赤"></textarea>
             </div>
             <div class="btn-row">
                 <button class="admin-btn" id="decodeBtn">&#9654; DECODE LOG</button>
@@ -139,6 +136,7 @@ updateClock();
 
 // ===== LOG PARSER =====
 let parsedData = null;
+const roomMosaic = {}; // idx -> boolean (モザイク表示ON/OFF)
 
 function preprocessLog(text) {
     // Insert newlines before room headers: === ... ===
@@ -283,50 +281,21 @@ document.getElementById('clearLogBtn').addEventListener('click', () => {
 
 // ===== SAMPLE DATA =====
 document.getElementById('sampleBtn').addEventListener('click', () => {
-    document.getElementById('logInput').value = `=== AC-009 ハっとする鳩 ===
-【外見的特徴を記述してください】
-  測定員あかり  →  灰色の羽根に赤い目。普通の鳩と見分けがつかないが、瞬きが異常に遅い。
-  測定員そら  →  中型の鳩。胸元に微かな発光が見られることがある。
-  測定員ゆうき  →  一般的なドバトに酷似。近距離で観察すると瞳孔が十字型に見える。
+    document.getElementById('logInput').value = `=== AC-067 ===
+【友好度】 pibby → Opponents
+【危険度】 pibby → Perious
+【特別処置】 pibby → 処分
+【異常性をすべて特定する。】 pibby → 会話、行動、巨大化、実体の顕現、複製の作成
+【望みを特定する。 】 pibby → 仲間が欲しい。
+【異現実の作品名を特定する。 】 pibby → 救い
 
-【異現実性の発現条件と挙動を報告してください】
-  測定員あかり  →  対象を鏡やカメラの前に置くと自動的に写真が出現する。未来の映像をプリントする。
-  測定員そら  →  半径2m以内に生物が近づくと発動。写真の内容は対象の未来に関するもの。
-  測定員ゆうき  →  特定の人物を注視すると足元にポラロイド写真が出現。的中率は100%。
-
-【危険度と対話可能性の所見】
-  測定員あかり  →  無害。人語を理解する素振りはあるが発話能力なし。
-  測定員そら  →  無害。首の動きでYes/No程度の応答を行う。攻撃性は確認されず。
-  測定員ゆうき  →  無害。自発的な行動は給餌時のみ。従順な性質。
-
-=== AC-119 消火器マン ===
-【初回接触時の対象の反応を記述してください】
-  測定員あかり  →  入室直後に「ヨウコソ」と発話。消火器を構えたまま直立不動。
-  測定員そら  →  測定員を視認すると頭部のバルブが回転し始めた。友好的な態度。
-  測定員ゆうき  →  身振り手振りで何かを伝えようとしていたが内容は不明。威嚇行動なし。
-
-【消火剤噴射の発動条件を確認してください】
-  測定員あかり  →  室温が35度を超えると無差別に噴射。それ以外は自発的に噴射しない。
-  測定員そら  →  火気に対して即座に反応し噴射。ライターの着火でも反応した。
-  測定員ゆうき  →  強い光源にも反応する。カメラのフラッシュで噴射された。
-
-【収容時の注意事項を報告してください】
-  測定員あかり  →  室温を25度以下に維持すること。照明は暖色LEDのみ推奨。
-  測定員そら  →  消火剤の残量は無限。噴射後も本体重量に変化なし。
-  測定員ゆうき  →  週1回の「点検ごっこ」をしないと不機嫌になりノズルを壁に向ける。
-
-=== AC-192 ブラックアルバム ===
-【対象の物理的特徴を記述してください】
-  測定員あかり  →  黒革装丁のアルバム。ページ数は開くたびに変動する。最小8頁、最大で200頁以上。
-  測定員そら  →  表紙に金色の箔押しで「B.A.」の刻印。裏表紙に製造元の記載なし。
-
-【異現実性の発現パターンを報告してください】
-  測定員あかり  →  開いた者の「最も忘れたい記憶」が写真として出現。本人以外には白紙に見える。
-  測定員そら  →  連続して開くと記憶の時系列が崩れ、古い記憶ほど鮮明に表示される。
-
-【精神的影響の有無と程度を評価してください】
-  測定員あかり  →  閲覧後30分程度の軽度な気分の落ち込みあり。1時間で回復。重篤な影響なし。
-  測定員そら  →  3回以上連続閲覧した被験者に一時的な解離症状。24時間で完全回復。要注意。`;
+=== AC-000 ===
+【友好度】 ミタライ → Neutral
+【危険度】 ミタライ → Userful
+【特別処置】 ミタライ → 収容維持
+【各項目の調査結果を文で報告してください。 】 ミタライ → すごかった
+【各項目の調査結果を文で報告してください。】 ミタライ → わからんかった
+【各項目の調査結果を文で報告してください。 】 ミタライ → こわかった`;
 });
 
 // ===== AUTO-FILL HELPERS =====
@@ -335,57 +304,90 @@ function setRoomField(idx, field, value) {
     if (el) el.value = value;
 }
 
-function autoFillRoomFields(room, idx) {
-    const nameMatch = room.name.match(/(AC-\d+)\s+(.*)/);
-    if (nameMatch) {
-        setRoomField(idx, 'num', nameMatch[1]);
-        setRoomField(idx, 'name', nameMatch[2]);
-    }
-
-    const fieldMap = [
-        { field: 'nature',  kw: ['外見', '特徴', '物理', '見た目', '形状', '形態'] },
-        { field: 'anomaly', kw: ['異現実性', '発現', '発動', '能力', 'パターン', '挙動'] },
-        { field: 'origin',  kw: ['出自', '場所', '発見', '入手', '出所', '由来'] },
-    ];
-
-    for (const { field, kw } of fieldMap) {
-        const q = room.questions.find(q => kw.some(k => q.text.includes(k)));
-        if (q && q.responses.length) {
-            setRoomField(idx, field, q.responses[0].answer);
-        }
-    }
-
-    const allText = room.questions.flatMap(q => q.responses.map(r => r.answer)).join(' ');
-    let att = 'N';
-    if (/敵対|凶暴|攻撃的/.test(allText)) att = 'O';
-    if (/友好|従順|穏やか/.test(allText)) att = 'F';
-    let haz = 'H';
-    if (/極めて危険|致命的|甚大/.test(allText)) haz = 'P';
-    if (/有用|利用価値|有益/.test(allText)) haz = 'U';
-    setRoomField(idx, 'cat', `${att}/${haz}`);
+// 友好度・危険度・特別処置は調査項目ではなく固定の選択式回答
+function isSpecialQuestionText(text) {
+    const t = (text || '').trim();
+    return t === '友好度' || t === '危険度' || t === '特別処置';
 }
 
-// ===== QUESTION SECTIONS BUILDER =====
-function buildQuestionSections(idx) {
+function autoFillRoomFields(room, idx) {
+    // AC番号（部屋名の先頭トークン。"AC-053" のみ／旧形式 "AC-009 名称" 双方に対応）
+    const numMatch = room.name.match(/^(AC-\S+)/);
+    setRoomField(idx, 'num', numMatch ? numMatch[1] : room.name);
+
+    // 友好度・危険度・特別処置は選択肢回答なので、該当する質問から直接読み取る
+    const friendlyQ = room.questions.find(q => q.text.trim() === '友好度');
+    const hazardQ = room.questions.find(q => q.text.trim() === '危険度');
+    const dispositionQ = room.questions.find(q => q.text.trim() === '特別処置');
+
+    let att = 'N';
+    if (friendlyQ && friendlyQ.responses.length) {
+        const v = friendlyQ.responses[0].answer.toLowerCase();
+        if (v.includes('friend') || v.includes('友好')) att = 'F';
+        else if (v.includes('oppon') || v.includes('敵対')) att = 'O';
+        else if (v.includes('neutral') || v.includes('中立')) att = 'N';
+    }
+
+    let haz = 'H';
+    if (hazardQ && hazardQ.responses.length) {
+        const v = hazardQ.responses[0].answer.toLowerCase();
+        // "Perilous" の表記ゆれ（Perious 等の誤記）も先頭一致で吸収
+        if (v.startsWith('peri') || v.includes('危険')) haz = 'P';
+        else if (v.includes('useful') || v.includes('有用')) haz = 'U';
+        else if (v.includes('harmless') || v.includes('無害')) haz = 'H';
+    }
+
+    setRoomField(idx, 'cat', `${att}/${haz}`);
+
+    const dispositionMap = {
+        '解放措置': 'release',
+        '収容維持': 'contain',
+        'トラウマ処理': 'trauma',
+        '処分': 'dispose'
+    };
+    let disposition = haz === 'P' ? 'contain' : 'release';
+    if (dispositionQ && dispositionQ.responses.length) {
+        const raw = dispositionQ.responses[0].answer.trim();
+        if (dispositionMap[raw]) disposition = dispositionMap[raw];
+    }
+    setRoomField(idx, 'disposition', disposition);
+
+    // お名前（測定員名）：このルームの回答はすべて同一人物が記入しているため、最初に見つかった回答者名を採用
+    const firstResponse = room.questions.flatMap(q => q.responses)[0];
+    if (firstResponse) {
+        setRoomField(idx, 'name', firstResponse.player);
+    }
+}
+
+// ===== SURVEY ITEMS BUILDER (report-form.html 用) =====
+function buildSurveyItemsHtml(idx) {
     const room = parsedData[idx];
     if (!room) return '';
-    return room.questions.map((q, qIdx) => {
+
+    const itemsHtml = room.questions
+        .map((q, qIdx) => ({ q, qIdx }))
+        .filter(({ q }) => !isSpecialQuestionText(q.text))
+        .map(({ q, qIdx }) => {
         const ta = document.querySelector(`[data-room="${idx}"][data-field="q${qIdx}"]`);
         const text = ta ? ta.value.trim() : '';
         const lines = text.split('\n').filter(Boolean);
-        const resHtml = lines.map(line => {
-            const m = line.match(/^(.+?):\s+(.+)$/);
-            if (m) return `<div class="survey-resp"><span class="survey-resp-name">${escapeHtml(m[1])}</span><span class="survey-resp-text">${escapeHtml(m[2])}</span></div>`;
-            return `<p style="font-size:12px;color:#3a3835;line-height:1.8;padding-left:12px;">${escapeHtml(line)}</p>`;
-        }).join('\n');
-        return `<div class="survey-question">
-                        <div class="survey-q-header">
-                            <span class="survey-q-num">Q${String(qIdx + 1).padStart(2, '0')}</span>
-                            <span class="survey-q-text">${escapeHtml(q.text)}</span>
-                        </div>
-                        <div class="survey-responses">${resHtml}</div>
-                    </div>`;
-    }).join('\n');
+
+        const linesHtml = lines.length
+            ? lines.map(line => {
+                // 回答のみを出力（プレイヤー名は表示しない）
+                const m = line.match(/^(.+?):\s+(.+)$/);
+                const answerOnly = m ? m[2] : line;
+                return `                <span class="item-line">${escapeHtml(answerOnly)}</span>`;
+            }).join('\n')
+            : `                <span class="item-line">&nbsp;</span>`;
+
+        return `            <div class="survey-item">
+                <span class="item-bullet">・<strong>${escapeHtml(q.text.trim())}</strong></span>
+${linesHtml}
+            </div>`;
+    });
+
+    return itemsHtml.join('\n');
 }
 
 // ===== PER-ROOM GENERATORS (TABBED) =====
@@ -402,6 +404,7 @@ function renderRoomGenerators(rooms) {
     rooms.forEach((room, idx) => {
         let questionsHtml = '';
         room.questions.forEach((q, qIdx) => {
+            if (isSpecialQuestionText(q.text)) return; // 友好度/危険度/特別処置は専用フィールドで管理
             questionsHtml += `
                 <div class="field-row">
                     <label class="admin-label">Q${String(qIdx + 1).padStart(2, '0')}: ${escapeHtml(q.text)}</label>
@@ -420,11 +423,11 @@ function renderRoomGenerators(rooms) {
                         <input class="admin-input" data-room="${idx}" data-field="num" placeholder="AC-XXX">
                     </div>
                     <div class="field-row">
-                        <label class="admin-label">Name — AUTO-FILLED</label>
-                        <input class="admin-input" data-room="${idx}" data-field="name" placeholder="異現実名称">
+                        <label class="admin-label">Name (測定員名) — AUTO-FILLED</label>
+                        <input class="admin-input" data-room="${idx}" data-field="name" placeholder="測定員氏名">
                     </div>
                     <div class="field-row">
-                        <label class="admin-label">Category — AUTO-FILLED</label>
+                        <label class="admin-label">Category (友好度/危険度) — AUTO-FILLED</label>
                         <select class="admin-select" data-room="${idx}" data-field="cat">
                             <option value="F/H">F/H — 友好 / 無害</option>
                             <option value="F/U">F/U — 友好 / 有用</option>
@@ -437,32 +440,23 @@ function renderRoomGenerators(rooms) {
                         </select>
                     </div>
                 </div>
-                <div class="field-grid">
-                    <div class="field-row">
-                        <label class="admin-label">Nature (性質) — AUTO-FILLED</label>
-                        <input class="admin-input" data-room="${idx}" data-field="nature" placeholder="例: 動物 / 対話不可">
-                    </div>
-                    <div class="field-row">
-                        <label class="admin-label">Origin (出自) — AUTO-FILLED</label>
-                        <input class="admin-input" data-room="${idx}" data-field="origin" placeholder="例: 東京都■■■公園">
-                    </div>
-                    <div class="field-row">
-                        <label class="admin-label">Anomaly Type (異現実性) — AUTO-FILLED</label>
-                        <input class="admin-input" data-room="${idx}" data-field="anomaly" placeholder="異現実としての特性">
-                    </div>
-                </div>
                 <div style="margin-top:20px; margin-bottom:4px;">
                     <span class="admin-label">SURVEY RESPONSES — 調査回答 — AUTO-FILLED</span>
                 </div>
                 ${questionsHtml}
                 <div class="field-row">
-                    <label class="admin-label">Addendum (追記・補足)</label>
-                    <textarea class="admin-textarea" data-room="${idx}" data-field="addendum" style="min-height:80px;"
-                        placeholder="（現在追記事項なし）"></textarea>
+                    <label class="admin-label">処置 (Disposition) — AUTO-FILLED</label>
+                    <select class="admin-select" data-room="${idx}" data-field="disposition">
+                        <option value="release">解放措置</option>
+                        <option value="contain">収容維持</option>
+                        <option value="trauma">トラウマ処理</option>
+                        <option value="dispose">処分</option>
+                    </select>
                 </div>
                 <div class="btn-row">
                     <button class="admin-btn room-preview-btn" data-room="${idx}">&#9654; PREVIEW</button>
-                    <button class="admin-btn room-download-btn" data-room="${idx}">DOWNLOAD HTML</button>
+                    <button class="admin-btn secondary room-mosaic-btn" data-room="${idx}">&#9632; モザイク表示 切替 (OFF)</button>
+                    <button class="admin-btn room-download-btn" data-room="${idx}">DOWNLOAD PNG</button>
                 </div>
                 <div class="room-preview-wrap" data-room="${idx}" style="display:none; margin-top:20px;">
                     <iframe class="preview-frame" data-room="${idx}" style="width:100%; min-height:600px; border:2px solid #d0cdc8;"></iframe>
@@ -500,7 +494,7 @@ function renderRoomGenerators(rooms) {
     section.querySelectorAll('.room-preview-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const i = parseInt(btn.dataset.room);
-            const html = generateRoomReportHtml(i);
+            const html = generateRoomReportHtml(i, !!roomMosaic[i]);
             const wrap = section.querySelector(`.room-preview-wrap[data-room="${i}"]`);
             const frame = wrap.querySelector('iframe');
             wrap.style.display = '';
@@ -509,20 +503,90 @@ function renderRoomGenerators(rooms) {
         });
     });
 
+    section.querySelectorAll('.room-mosaic-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const i = parseInt(btn.dataset.room);
+            roomMosaic[i] = !roomMosaic[i];
+            btn.textContent = `■ モザイク表示 切替 (${roomMosaic[i] ? 'ON' : 'OFF'})`;
+            btn.classList.toggle('active', !!roomMosaic[i]);
+
+            // プレビューが開いていれば即時反映
+            const wrap = section.querySelector(`.room-preview-wrap[data-room="${i}"]`);
+            if (wrap && wrap.style.display !== 'none') {
+                const frame = wrap.querySelector('iframe');
+                frame.srcdoc = generateRoomReportHtml(i, !!roomMosaic[i]);
+            }
+        });
+    });
+
     section.querySelectorAll('.room-download-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const i = parseInt(btn.dataset.room);
-            const html = generateRoomReportHtml(i);
             const num = getRoomField(i, 'num') || 'AC-XXX';
-            const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${num}.html`;
-            a.click();
-            URL.revokeObjectURL(url);
+            const html = generateRoomReportHtml(i, !!roomMosaic[i]);
+            downloadReportAsPng(html, `${num}.png`, btn);
         });
     });
+}
+
+// ===== HTML レポートを PNG 画像に変換してダウンロード =====
+function downloadReportAsPng(html, filename, triggerBtn) {
+    if (triggerBtn) {
+        triggerBtn.disabled = true;
+        triggerBtn.dataset.origText = triggerBtn.textContent;
+        triggerBtn.textContent = '生成中...';
+    }
+
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.left = '-9999px';
+    iframe.style.top = '0';
+    iframe.style.width = '620px';
+    iframe.style.height = '900px';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
+
+    const cleanup = () => {
+        document.body.removeChild(iframe);
+        if (triggerBtn) {
+            triggerBtn.disabled = false;
+            triggerBtn.textContent = triggerBtn.dataset.origText || 'DOWNLOAD PNG';
+        }
+    };
+
+    iframe.addEventListener('load', () => {
+        // フォント・画像の読み込みを少し待ってからキャプチャ
+        setTimeout(() => {
+            const doc = iframe.contentDocument;
+            const target = doc.querySelector('.paper') || doc.body;
+            if (typeof html2canvas !== 'function') {
+                alert('PNG変換ライブラリの読み込みに失敗しました。ネットワーク接続を確認してください。');
+                cleanup();
+                return;
+            }
+            html2canvas(target, {
+                backgroundColor: '#ffffff',
+                scale: 2,
+                useCORS: true
+            }).then(canvas => {
+                canvas.toBlob(blob => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    cleanup();
+                }, 'image/png');
+            }).catch(err => {
+                console.error(err);
+                alert('PNG変換に失敗しました: ' + err.message);
+                cleanup();
+            });
+        }, 400);
+    });
+
+    iframe.srcdoc = html;
 }
 
 function getRoomField(idx, field) {
@@ -530,150 +594,390 @@ function getRoomField(idx, field) {
     return el ? el.value.trim() : '';
 }
 
-// ===== AC REPORT HTML GENERATOR =====
-function generateRoomReportHtml(idx) {
+// ===== AC REPORT HTML GENERATOR (report-form.html テンプレート使用) =====
+function generateRoomReportHtml(idx, mosaic) {
     const num = getRoomField(idx, 'num') || 'AC-XXX';
-    const name = getRoomField(idx, 'name') || '（名称未設定）';
+    const name = getRoomField(idx, 'name') || '（測定員未設定）';
     const cat = getRoomField(idx, 'cat') || 'F/H';
-    const nature = getRoomField(idx, 'nature') || '—';
-    const origin = getRoomField(idx, 'origin') || '—';
-    const anomaly = getRoomField(idx, 'anomaly') || '—';
-    const addendum = getRoomField(idx, 'addendum') || '（現在追記事項なし）';
+    const disposition = getRoomField(idx, 'disposition') || 'release';
 
-    const numOnly = num.replace(/^AC-/, '');
-    const docId = `ACI-RPT-${numOnly.padStart(3, '0')}-PUB`;
-    const questionSections = buildQuestionSections(idx);
-    const addendumParagraphs = addendum.split('\n\n').filter(Boolean).map(p =>
-        `                <p>${escapeHtml(p).replace(/\n/g, '<br>')}</p>`
-    ).join('\n');
+    const [att, haz] = cat.split('/');
+    const isChecked = (cond) => cond ? ' checked' : '';
+
+    const surveyItemsHtml = buildSurveyItemsHtml(idx);
 
     return `<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>調査報告書 ${escapeHtml(num)} — 異現実収容研究所</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Zen+Kaku+Gothic+New:wght@300;400;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+    <title>異現実調査報告書 ${escapeHtml(num)} — Anomareal Lab</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        *{margin:0;padding:0;box-sizing:border-box}
-        body{background:#f5f4f0;color:#0a0a0a}
-        :root{
-            --black:#0a0a0a;--white:#fff;
-            --gray-100:#e8e6e1;--gray-200:#d0cdc8;--gray-300:#aaa8a3;
-            --gray-500:#6b6966;--gray-700:#3a3835;
-            --mono:'Share Tech Mono','Courier Prime',monospace;
-            --sans:'Zen Kaku Gothic New',sans-serif;
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #f0f0f0;
+            font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 32px 16px;
         }
-        .report-page{max-width:900px;margin:0 auto;padding:40px 20px}
-        .report-page-header{display:flex;justify-content:space-between;align-items:center;padding:12px 0 16px;margin-bottom:24px;border-bottom:2px solid var(--black)}
-        .institute-mark{font-family:var(--mono);font-size:11px;letter-spacing:3px;color:var(--black)}
-        .institute-sub{font-family:var(--mono);font-size:8px;letter-spacing:2px;color:var(--gray-300);margin-top:2px}
-        .header-right{font-family:var(--mono);font-size:8px;letter-spacing:2px;color:var(--gray-300);text-align:right;line-height:1.8}
-        .report-doc{background:var(--white);border:2px solid var(--black)}
-        .report-title-bar{border-bottom:2px solid var(--black);padding:16px 20px;text-align:center;position:relative}
-        .report-title-bar h1{font-family:var(--sans);font-size:20px;font-weight:700;letter-spacing:.1em;color:var(--black)}
-        .report-title-bar .doc-stamp{position:absolute;top:50%;right:20px;transform:translateY(-50%);font-family:var(--mono);font-size:8px;letter-spacing:2px;color:var(--gray-300);text-align:right;line-height:1.8}
-        .report-ac-row{display:flex;border-bottom:1px solid var(--black)}
-        .report-ac-main{flex:1;padding:12px 16px;border-right:1px solid var(--black);display:flex;align-items:baseline;gap:12px}
-        .report-ac-main .ac-num{font-family:var(--mono);font-size:22px;font-weight:bold;letter-spacing:2px;color:var(--black)}
-        .report-ac-main .ac-name{font-family:var(--sans);font-size:16px;font-weight:700;color:var(--black)}
-        .report-ac-category{width:100px;flex-shrink:0;padding:8px 12px;text-align:center}
-        .report-ac-category .cat-label{font-family:var(--mono);font-size:8px;letter-spacing:2px;color:var(--gray-300);display:block;margin-bottom:2px}
-        .report-ac-category .cat-value{font-family:var(--mono);font-size:20px;font-weight:bold;color:var(--black);letter-spacing:1px}
-        .report-meta-row{display:flex;border-bottom:1px solid var(--black)}
-        .report-meta-cell{flex:1;border-right:1px solid var(--black)}
-        .report-meta-cell:last-child{border-right:none}
-        .report-meta-cell .meta-label{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--black);background:var(--gray-100);padding:5px 12px;border-bottom:1px solid var(--black);display:block}
-        .report-meta-cell .meta-value{padding:8px 12px;font-size:12px;color:var(--gray-700);line-height:1.7;font-family:var(--sans)}
-        .report-body{border-bottom:1px solid var(--black);padding:20px;min-height:160px}
-        .report-body .body-label{font-family:var(--mono);font-size:8px;letter-spacing:3px;color:var(--gray-300);display:block;margin-bottom:16px}
-        .survey-question{margin-bottom:20px}
-        .survey-question:last-child{margin-bottom:0}
-        .survey-q-header{display:flex;align-items:baseline;gap:10px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--gray-100)}
-        .survey-q-num{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--gray-300);flex-shrink:0}
-        .survey-q-text{font-family:var(--sans);font-size:13px;font-weight:700;color:var(--black)}
-        .survey-resp{display:flex;gap:10px;padding:3px 0 3px 16px;font-size:12px;line-height:1.8}
-        .survey-resp-name{font-family:var(--mono);font-size:11px;color:var(--gray-500);min-width:110px;flex-shrink:0}
-        .survey-resp-text{color:var(--gray-700);font-family:var(--sans)}
-        .report-addendum{border-bottom:1px solid var(--black);padding:20px;min-height:80px;background:#fdfcfa}
-        .report-addendum .body-label{font-family:var(--mono);font-size:8px;letter-spacing:3px;color:var(--gray-300);display:block;margin-bottom:12px}
-        .report-addendum p{font-size:13px;color:var(--gray-700);line-height:2;margin-bottom:10px;font-family:var(--sans)}
-        .report-addendum p:last-child{margin-bottom:0}
-        .report-page-footer{display:flex;justify-content:space-between;align-items:center;margin-top:24px;padding:12px 0;border-top:1px solid var(--gray-200);font-family:var(--mono);font-size:8px;letter-spacing:2px;color:var(--gray-300)}
-        @media(max-width:768px){
-            .report-page{padding:16px 12px}
-            .report-page-header{flex-direction:column;gap:8px}
-            .report-title-bar .doc-stamp{display:none}
-            .report-ac-main .ac-num{font-size:16px}
-            .report-ac-main .ac-name{font-size:13px}
-            .report-meta-row{flex-direction:column}
-            .report-meta-cell{border-right:none;border-bottom:1px solid var(--black)}
-            .report-meta-cell:last-child{border-bottom:none}
-            .survey-resp{flex-direction:column;gap:2px}
-            .survey-resp-name{min-width:auto}
+
+        /* 用紙 */
+        .paper {
+            background: #fff;
+            width: 560px;
+            padding: 28px 28px 24px;
+            border: 1px solid #bbb;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+        }
+
+        /* タイトル */
+        .doc-title {
+            text-align: center;
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            margin-bottom: 16px;
+            color: #000;
+        }
+
+        /* ===== 上部ブロック ===== */
+        .top-block {
+            display: flex;
+            gap: 0;
+            border: 1.5px solid #333;
+            margin-bottom: 16px;
+        }
+
+        /* 左カラム（お名前 + 測定異現実） */
+        .top-left {
+            flex: 1;
+            border-right: 1.5px solid #333;
+        }
+
+        /* お名前エリア */
+        .name-area {
+            border-bottom: 1.5px solid #333;
+            padding: 6px 8px 0;
+            min-height: 72px;
+            position: relative;
+        }
+        .field-label {
+            font-size: 10px;
+            color: #333;
+            display: block;
+            margin-bottom: 4px;
+        }
+        .name-area .name-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #000;
+            display: block;
+        }
+        .name-area .role-badge {
+            position: absolute;
+            bottom: 6px;
+            right: 10px;
+            font-size: 14px;
+            font-weight: 700;
+            color: #000;
+        }
+
+        /* 測定異現実エリア */
+        .ac-area {
+            padding: 6px 8px 8px;
+            min-height: 68px;
+        }
+        .ac-area .ac-number {
+            font-size: 40px;
+            font-weight: 700;
+            color: #000;
+            letter-spacing: 2px;
+            margin-top: 2px;
+            text-align: center;
+            display: block;
+        }
+
+        /* 右カラム（写真枠） */
+        .top-right {
+            width: 110px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 140px;
+        }
+        .photo-placeholder {
+            width: 90px;
+            height: 110px;
+            border: 1px solid #aaa;
+            background: #f8f8f8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .photo-placeholder span {
+            font-size: 9px;
+            color: #bbb;
+            letter-spacing: 1px;
+        }
+
+        /* ===== カテゴリブロック ===== */
+        .category-block {
+            display: flex;
+            border: 1.5px solid #333;
+            margin-bottom: 16px;
+        }
+        .category-col {
+            flex: 1;
+            padding: 7px 10px 10px;
+        }
+        .category-col:first-child {
+            border-right: 1.5px solid #333;
+        }
+        .category-col .cat-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: #000;
+            margin-bottom: 7px;
+            display: block;
+        }
+        .check-item {
+            display: flex;
+            align-items: baseline;
+            gap: 5px;
+            font-size: 11px;
+            color: #222;
+            margin-bottom: 4px;
+            line-height: 1.5;
+        }
+        .check-item:last-child { margin-bottom: 0; }
+        .check-box {
+            display: inline-block;
+            width: 11px;
+            height: 11px;
+            border: 1px solid #333;
+            flex-shrink: 0;
+            position: relative;
+            top: 1px;
+        }
+        .check-box.checked {
+            background: #000;
+        }
+
+        /* ===== 調査項目ブロック ===== */
+        .survey-block {
+            border: 1.5px solid #333;
+            margin-bottom: 16px;
+        }
+        .survey-header {
+            padding: 6px 10px 0;
+            font-size: 11px;
+            font-weight: 700;
+            color: #000;
+            margin-bottom: 4px;
+            display: block;
+        }
+        .survey-items {
+            padding: 0 10px 0;
+        }
+        .survey-item {
+            padding: 2px 0 14px;
+        }
+        .survey-item .item-bullet {
+            font-size: 12px;
+            color: #000;
+            display: block;
+            margin-bottom: 4px;
+        }
+        .survey-item .item-line {
+            display: block;
+            width: 100%;
+            border-bottom: 1px solid #888;
+            margin-bottom: 2px;
+            min-height: 18px;
+            height: auto;
+            padding: 1px 0 4px;
+            font-size: 11px;
+            line-height: 1.6;
+            color: #222;
+            word-break: break-word;
+        }
+        .survey-item .item-line .resp-name {
+            font-weight: 700;
+            color: #000;
+            margin-right: 6px;
+        }
+        .survey-note {
+            text-align: right;
+            font-size: 8px;
+            color: #555;
+            padding: 4px 10px 6px;
+            border-top: 1px solid #ddd;
+            line-height: 1.5;
+        }
+
+        /* ===== モザイク（黒塗り）モード ===== */
+        .mosaic-mode .survey-items .item-bullet,
+        .mosaic-mode .survey-items .item-line {
+            background: #000;
+            color: transparent;
+            border-radius: 2px;
+            border-bottom-color: #000;
+            user-select: none;
+        }
+        .mosaic-mode .survey-items .item-bullet *,
+        .mosaic-mode .survey-items .item-line * {
+            color: transparent;
+        }
+
+        /* ===== 処置チェックブロック ===== */
+        .disposition-block {
+            border: 1.5px solid #333;
+            padding: 8px 12px;
+            display: flex;
+            gap: 0;
+            align-items: center;
+            justify-content: space-around;
+            margin-bottom: 20px;
+        }
+        .disposition-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+            color: #000;
+        }
+
+        /* ===== ロゴ ===== */
+        .logo-area {
+            display: flex;
+            justify-content: right;
+            align-items: center;
+            padding-top: 4px;
+        }
+        .logo-area img {
+            height: 50px;
+            width: auto;
+        }
+        .logo-placeholder {
+            font-size: 11px;
+            color: #aaa;
+            letter-spacing: 2px;
+            font-family: monospace;
+            border: 1px dashed #ccc;
+            padding: 8px 20px;
         }
     </style>
 </head>
-<body>
-    <div class="report-page">
-        <header class="report-page-header">
-            <div>
-                <div class="institute-mark">ANOMAREAL CONTAINMENT INSTITUTE</div>
-                <div class="institute-sub">異現実収容研究所 — KURUSU BRANCH</div>
-            </div>
-            <div class="header-right">DOC-ID: ${docId}<br>CLASSIFICATION: PUBLIC</div>
-        </header>
+<body class="${mosaic ? 'mosaic-mode' : ''}">
+<div class="paper">
 
-        <div class="report-doc">
-            <div class="report-title-bar">
-                <h1>異現実調査報告書</h1>
-                <div class="doc-stamp">DOC-ID: ${docId}<br>ISSUED: ■■■■.■■.■■<br>CLASSIFICATION: PUBLIC</div>
-            </div>
+    <!-- タイトル -->
+    <h1 class="doc-title">異現実調査報告書</h1>
 
-            <div class="report-ac-row">
-                <div class="report-ac-main">
-                    <span class="ac-num">${escapeHtml(num)}</span>
-                    <span class="ac-name">${escapeHtml(name)}</span>
-                </div>
-                <div class="report-ac-category">
-                    <span class="cat-label">カテゴリ</span>
-                    <span class="cat-value">${escapeHtml(cat)}</span>
-                </div>
+    <!-- 上部：お名前 / 測定異現実 / 写真枠 -->
+    <div class="top-block">
+        <div class="top-left">
+            <!-- お名前 -->
+            <div class="name-area">
+                <span class="field-label">お名前</span>
+                <span class="name-value">${escapeHtml(name)}</span>
+                <span class="role-badge">測定員</span>
             </div>
-
-            <div class="report-meta-row">
-                <div class="report-meta-cell">
-                    <span class="meta-label">性質</span>
-                    <div class="meta-value">${escapeHtml(nature)}</div>
-                </div>
-                <div class="report-meta-cell">
-                    <span class="meta-label">出自</span>
-                    <div class="meta-value">${escapeHtml(origin)}</div>
-                </div>
-                <div class="report-meta-cell">
-                    <span class="meta-label">異現実性</span>
-                    <div class="meta-value">${escapeHtml(anomaly)}</div>
-                </div>
-            </div>
-
-            <div class="report-body">
-                <span class="body-label">SURVEY RESULTS — 調査結果</span>
-${questionSections}
-            </div>
-
-            <div class="report-addendum">
-                <span class="body-label">ADDENDUM — 追記・補足</span>
-${addendumParagraphs}
+            <!-- 測定異現実 -->
+            <div class="ac-area">
+                <span class="field-label">測定異現実</span>
+                <span class="ac-number">${escapeHtml(num)}</span>
             </div>
         </div>
-
-        <footer class="report-page-footer">
-            <span>&copy; ANOMAREAL CONTAINMENT INSTITUTE &mdash; ALL RIGHTS RESERVED</span>
-            <span>${docId}</span>
-        </footer>
+        <!-- 写真枠 -->
+        <div class="top-right">
+            <div class="photo-placeholder">
+                <span>PHOTO</span>
+            </div>
+        </div>
     </div>
+
+    <!-- カテゴリ -->
+    <div class="category-block">
+        <!-- 友好カテゴリ -->
+        <div class="category-col">
+            <span class="cat-title">友好カテゴリ</span>
+            <div class="check-item">
+                <span class="check-box${isChecked(att === 'O')}"></span>
+                <span>Opponents・・・敵対、攻撃的</span>
+            </div>
+            <div class="check-item">
+                <span class="check-box${isChecked(att === 'N')}"></span>
+                <span>Neutral・・・中立、対応に注意</span>
+            </div>
+            <div class="check-item">
+                <span class="check-box${isChecked(att === 'F')}"></span>
+                <span>Friendly・・・友好、献身的</span>
+            </div>
+        </div>
+        <!-- 危険カテゴリ -->
+        <div class="category-col">
+            <span class="cat-title">危険カテゴリ</span>
+            <div class="check-item">
+                <span class="check-box${isChecked(haz === 'P')}"></span>
+                <span>Perilous・・・危険かつ制御不能</span>
+            </div>
+            <div class="check-item">
+                <span class="check-box${isChecked(haz === 'U')}"></span>
+                <span>Useful・・・制御可能、有用可能</span>
+            </div>
+            <div class="check-item">
+                <span class="check-box${isChecked(haz === 'H')}"></span>
+                <span>Harmless・・・無害、有用性なし</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 調査項目 -->
+    <div class="survey-block">
+        <span class="survey-header">調査項目</span>
+        <div class="survey-items">
+${surveyItemsHtml}
+        </div>
+        <div class="survey-note">
+            ※こちらの項目は公開を禁止しています。SNSに掲載の際は黒で塗りつぶしてください。
+        </div>
+    </div>
+
+    <!-- 処置チェック -->
+    <div class="disposition-block">
+        <div class="disposition-item">
+            <span class="check-box${isChecked(disposition === 'release')}"></span>
+            <span>解放措置</span>
+        </div>
+        <div class="disposition-item">
+            <span class="check-box${isChecked(disposition === 'contain')}"></span>
+            <span>収容維持</span>
+        </div>
+        <div class="disposition-item">
+            <span class="check-box${isChecked(disposition === 'trauma')}"></span>
+            <span>トラウマ処理</span>
+        </div>
+        <div class="disposition-item">
+            <span class="check-box${isChecked(disposition === 'dispose')}"></span>
+            <span>処分</span>
+        </div>
+    </div>
+
+    <!-- ロゴ -->
+    <div class="logo-area">
+        <img src="img/sheet_logo.png" alt="Anomareal Lab"
+            onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+        <span class="logo-placeholder" style="display:none;">[ LOGO HERE ]</span>
+    </div>
+
+</div>
 </body>
 </html>`;
 }
