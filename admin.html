@@ -272,7 +272,7 @@ document.getElementById('clearLogBtn').addEventListener('click', () => {
 document.getElementById('sampleBtn').addEventListener('click', () => {
     document.getElementById('logInput').value = `=== AC-067 ===
 【友好度】 pibby → Opponents
-【危険度】 pibby → Perious
+【危険度】 pibby → Perilous
 【特別処置】 pibby → 処分
 【異常性をすべて特定する。】 pibby → 会話、行動、巨大化、実体の顕現、複製の作成
 【望みを特定する。 】 pibby → 仲間が欲しい。
@@ -348,7 +348,6 @@ function autoFillRoomFields(room, idx) {
     }
 }
 
-// ===== SURVEY ITEMS BUILDER (report-form.html 用) =====
 function buildSurveyItemsHtml(idx) {
     const room = parsedData[idx];
     if (!room) return '';
@@ -583,7 +582,6 @@ function getRoomField(idx, field) {
     return el ? el.value.trim() : '';
 }
 
-// ===== AC REPORT HTML GENERATOR (report-form.html テンプレート使用) =====
 function generateRoomReportHtml(idx, mosaic) {
     const num = getRoomField(idx, 'num') || 'AC-XXX';
     const name = getRoomField(idx, 'name') || '（測定員未設定）';
@@ -887,7 +885,7 @@ function generateRoomReportHtml(idx, mosaic) {
         <!-- 写真枠 -->
         <div class="top-right">
             <div class="photo-placeholder">
-                <span>PHOTO</span>
+                <span>[写真添付]</span>
             </div>
         </div>
     </div>
@@ -971,7 +969,6 @@ ${surveyItemsHtml}
 </html>`;
 }
 
-// Preview and Download are now handled per-room in renderRoomGenerators()
 </script>
 </body>
 </html>
