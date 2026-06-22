@@ -114,7 +114,6 @@
     }
     document.getElementById('authGate').style.display = 'none';
     const user = sessionStorage.getItem('adminUser') || 'Director';
-    document.getElementById('adminUserLabel').textContent = `USER: ${user}`;
     document.getElementById('headerUser').textContent = user;
 })();
 
@@ -123,16 +122,6 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
     sessionStorage.removeItem('adminUser');
     window.location.href = 'login.html';
 });
-
-// ===== CLOCK =====
-function updateClock() {
-    const now = new Date();
-    const p = n => String(n).padStart(2, '0');
-    document.getElementById('clock').textContent =
-        `${now.getFullYear()}-${p(now.getMonth()+1)}-${p(now.getDate())} ${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
-}
-setInterval(updateClock, 1000);
-updateClock();
 
 // ===== LOG PARSER =====
 let parsedData = null;
